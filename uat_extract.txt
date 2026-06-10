@@ -1,0 +1,182 @@
+﻿UAT 用户验收测试用例 (User Acceptance Test Cases)
+一、游客登录与多孩管理 (Guest Flow & Child Profiles)
+用例编号
+功能模块
+测试场景 (User Scenario)
+操作步骤 (Steps)
+预期结果 (Expected Result)
+状态 (Status)
+UAT-01
+初始无感流
+新用户首次打开 App 页面
+1. 清空浏览器缓存后重新打开 App 网页。
+2. 观察首屏表现。
+直接秒进 Dashboard 首页，没有任何邮箱或强行注册拦截。默认展示第 1 个孩子（My Child）。
+Not Started
+UAT-02
+免费版多孩红线
+免费状态下尝试添加第 2 个孩子
+1. 进入 Settings 页面。
+2. 点击 [ ➕添加儿童 ] 录入第 2 个名字。
+拦截成功。系统阻止添加，并弹出【Pro 升级买断弹窗】。
+Not Started
+UAT-03
+Pro版多孩上限
+模拟激活 Pro 账户后，添加多个孩子
+1. 模拟点击支付，激活isPro: true。
+2. 在 Settings 里连续添加孩子，直到尝试添加第 6 个。
+1. 前 5 个孩子均成功创建并可自由切换。
+2. 第 6 个孩子无法添加，按钮变灰，提示："Maximum of 5 child profiles reached"。
+Not Started
+UAT-04
+孩子档案管理
+修改与删除孩子信息
+1. 点击孩子名字旁的【小铅笔】，修改名字并保存。
+2. 点击【垃圾桶】尝试删除。
+1. 名字成功更新并全站联动。
+2. 弹出二次确认警告：“删除孩子将同步清空其所有历史病例”，确认后数据被安全物理粉碎。
+Not Started
+二、 Episode（疾病事件）增删改查 (Episode CRUD)
+用例编号
+功能模块
+测试场景 (User Scenario)
+操作步骤 (Steps)
+预期结果 (Expected Result)
+状态 (Status)
+UAT-05
+创建首个 Episode
+免费版用户首次记录生病
+1. 在首页点击 [ ➕开始新病例 (Start New Episode) ]。
+2. 选择疾病标签（如 Cough）。
+1. 成功创建第 1 个 Open 状态的 Episode。
+2. 首页看板正确渲染该 Episode 的时间轴。
+Not Started
+UAT-06
+疾病标签多选追加
+疾病中途出现并发症 (并发并入)
+1. 在该 Cough 历史下，通过 Quick Log 勾选并录入一条全新的“发烧 39.5°C”记录。
+2. 保存并返回。
+1. 记录保存成功。
+2. 系统的illnessType自动并入新标签。Dashboard 上的病例标题动态更新为组合名："Cough, Cold & Fever"。
+Not Started
+UAT-07
+免费版第二次生病
+免费版遇到第二次深夜生病 (深夜5次免死金牌)
+1. 手动关闭第 1 个 Episode（此时本地有 1 个历史病历）。
+2. 模拟深夜再次点击 Start New Episode 并尝试录入数据。
+无条件放行！允许顺利创建第 2 个新 Episode，并在前 5 条 Log 内绝不弹窗打扰要钱。底部打上紧急模式标签。
+Not Started
+UAT-08
+收费墙超时/超额拦截
+紧急通道额度耗尽拦截
+1. 在 UAT-07 的紧急 Episode 下录入第 6 条 Log，或等待该事件创建超过 12 小时。
+2. 再次打开 App 或尝试写入。
+切断操作。系统强势且温馨地弹出【App Store 永久买断付费弹窗 (£2.99)】，锁定前5次紧急数据。
+Not Started
+UAT-09
+查看与切换历史病历
+查阅过去的生病档案
+1. 切换到“历史档案（History / Timeline）”页面。
+2. 点击查看过去已关闭的 Episode。
+1. 可以清晰查阅该 Episode 下的所有历史体温和用药明细。
+2. 界面处于 Read-only（只读状态）或提供明确的编辑入口。
+Not Started
+三、 Log（日志明细）增删改查 & 安全锁 (Log CRUD & Safety Lock)
+用例编号
+功能模块
+测试场景 (User Scenario)
+操作步骤 (Steps)
+预期结果 (Expected Result)
+状态 (Status)
+UAT-10
+基础 Log 极速录入
+录入体温或给药记录
+1. 在 Quick Log 页面录入：38.5°C，药物选择 Calpol, 剂量 5ml。
+2. 点击保存。
+1. 时间轴上立刻生成一条最新 Log。
+2. 【用药安全锁核心激活】：首页醒目展示 Calpol 的安全倒计时（如：“距离下次可用还剩 03:59:59”）。
+Not Started
+UAT-11
+安全倒计时越狱拦截
+在安全锁冷却期内，再次尝试喂同一种药
+1. 距离上次喂 Calpol 仅过去 2 小时。
+2. 再次打开 Quick Log 尝试勾选Calpol 提交。
+拦截成功！界面强制弹出高危红色警告：“Calpol 安全间隔未到！上次服药于 2小时前，强行给药有超量风险！”必须提供两段式强行解锁或彻底阻断。
+Not Started
+UAT-12
+修改历史 Log
+补录或修正过去某次记错的体温
+1. 选中时间轴上 3 小时前的一条 39.0°C 的历史 Log。
+2. 点击“编辑（Edit）”，把体温改成 38.8°C 并保存。
+1. 该条 Log 数据成功被更新。
+2. 首页的最新体温趋势折线图/卡片同步更新为 38.8°C，没有数据滞后。
+Not Started
+UAT-13
+删除历史 Log
+误触录入，需要彻底擦除单条记录
+1. 点击某条误录入的 Log 旁的【删除】按钮。
+2. 弹出确认框后点击确认。
+1. 该条 Log 从本地LocalStorage中被彻底抹去。
+2. 如果删除的是最近一次给药，对应的安全锁倒计时必须自动解除/重新计算！
+Not Started
+四、 5+5 天阶梯式静默结算与时间校准 (Data Lifecycle & Date Alignment)
+用例编号
+功能模块
+测试场景 (User Scenario)
+操作步骤 (Steps)
+预期结果 (Expected Result)
+状态 (Status)
+UAT-14
+第 5 天静默初次提醒
+孩子病好了，家长连续 5 天没有录入任何新数据
+1. 模拟将本地当前 Open 的 Episode 最后一条 Log 时间往前调整 120 小时（5天）。
+2. 重新打开 App。
+首页阻断。啪弹出初次温馨提示卡片："Is your child fully recovered? 🌟 No records for 5 days. We recommend closing this episode..."
+Not Started
+UAT-15
+静默期抗疲劳机制
+家长在第 5 天弹窗时点击了 [ Keep Open ]
+1. 在 UAT-14 弹窗中点击 [ Keep Open ]。
+2. 接下来的 1-4 天内，频繁关闭并重新打开 App。
+完美静默。系统极其聪明，在这期间打开 App 畅通无阻，绝对不再重复弹窗打扰家长。
+Not Started
+UAT-16
+第 10 天二次严肃提醒
+过了 10 天依然没动静，进行最终核查
+1. 模拟将无记录时间推进到第 10 天（240小时）。
+2. 重新打开 App。
+首页再次弹出严肃文案卡片："To ensure the absolute accuracy of your child's future health trend charts..."提示核对数据。若再次选 Keep Open，系统彻底闭嘴，永不弹窗。
+Not Started
+UAT-17
+关闭时间回拨与图表精准度校准
+家长在周三手动关闭病例，但选择将痊愈时间回拨到周一
+1. 点击关闭 Episode（无论主动还是通过弹窗）。
+2. 在 End Date Picker 中，手动把时间往回拨 48 小时并保存。
+1. 病例成功标记为 Closed。
+2. 该 Episode 的总生病时长（Duration）严格按照【周一 - 开始时间】计算。
+3. Dashboard 的跨月度生病趋势堆叠柱状图高度精准联动，没有被周一到周三这两天的空白期拉长。
+Not Started
+五、 Pro 用户购买成功与功能解锁检测 (Pro Purchase & Provisioning Flow)
+用例编号
+功能模块
+测试场景 (User Scenario)
+操作步骤 (Steps)
+预期结果 (Expected Result)
+状态 (Status)
+UAT-18
+支付拉起与加载状态
+在 Settings 或收费墙点击购买
+1. 处于免费版限制状态。
+2. 点击收费墙或设置页的 [ 💳 Upgrade for £2.99 ] 按钮。
+1. 界面立刻进入不可点击的 Loading 状态，渲染 2 秒钟苹果原生 IAP 支付旋转动画。
+2. 此时狂点背景或其他按钮应无效（防用户重复点击二次扣款）。
+Not Started
+UAT-19
+权益瞬间无损下发
+模拟苹果底层返回支付成功凭证（Receipt）
+1. 2秒动画结束，模拟底层返回 success。
+2. 观察全局状态变量isPro和当前操作界面。
+1. 弹出精美提示："Purchase Successful! Thank you for supporting KidHealth."
+2. 全局isPro瞬间变为 true 并写入LocalStorage。
+3. 原本被切断的第 6 次 Log 或添加第 2 个孩子操作无需刷新，直接无损转正通过！
+Not Started

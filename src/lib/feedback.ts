@@ -1,0 +1,45 @@
+const FORMSPREE_ENDPOINT = "https://formspree.io/f/xeewzdvn";
+
+export const APP_VERSION = "1.0.0";
+
+export type FeedbackPayload = {
+  message: string;
+  isPro: boolean;
+  parentName?: string;
+};
+
+export async function submitFeedback({
+  message,
+  isPro,
+  parentName,
+}: FeedbackPayload): Promise<void> {
+  const trimmed = message.trim();
+  if (!trimmed) {
+    throw new Error("Please enter your feedback before submitting.");
+  }
+
+  const response = await fetch(FORMSPREE_ENDPOINT, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify({
+      message: trimmed,
+      appVersion: APP_VERSION,
+      isPro,
+      parentName: parentName?.trim() || "Parent",
+    }),
+  });
+
+  if (!response.ok) {
+    let detail = "Could not send feedback. Please try again.";
+    try {
+      const data = (await response.json()) as { error?: string };
+      if (data.error) detail = data.error;
+    } catch {
+      // ignore parse errors
+    }
+    throw new Error(detail);
+  }
+}
