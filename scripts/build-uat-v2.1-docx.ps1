@@ -14,7 +14,7 @@ foreach ($line in $lines) {
   if ($trim -eq '') { continue }
   if ($trim -match '^UAT 用户|^更新说明') { continue }
 
-  if ($trim -match '\(Guest Flow|\(Episode CRUD|\(Log CRUD|\(Data Lifecycle|\(Pro Purchase') {
+  if ($trim -match '\(Guest Flow|\(Episode CRUD|\(Log CRUD|\(Data Lifecycle|\(Pro Purchase|\(Legal & Medical Disclaimer|\(Dashboard Analytics') {
     if ($null -ne $currentSection) { [void]$sections.Add($currentSection) }
     $currentSection = [PSCustomObject]@{
       Title = $trim

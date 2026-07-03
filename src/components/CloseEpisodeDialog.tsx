@@ -1,15 +1,32 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Calendar, Clock } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { closeEpisode, formatEpisodeTitle, type Episode } from "@/lib/episode-store";
-import { getLastActivityForEpisode } from "@/lib/log-store";
+import {
+  closeEpisode,
+  formatEpisodeTitle,
+  getSickDays,
+  type Episode,
+} from "@/lib/episode-store";
+import { getLogsForEpisode } from "@/lib/log-store";
+import {
+  formatCloseDateInput,
+  formatCloseTimeInput,
+  parseCloseTimestamp,
+} from "@/lib/episode-close";
+import {
+  dialogDateFieldClass,
+  dialogDateWrapClass,
+  dialogFooterClass,
+  dialogPrimaryButtonClass,
+  dialogSecondaryButtonClass,
+} from "@/lib/dialog-ui";
+import { ChildNameBadge } from "@/components/ChildNameBadge";
 import { toast } from "sonner";
 
 type Props = {
@@ -19,47 +36,35 @@ type Props = {
   onClosed?: () => void;
 };
 
-function formatDateInput(d: Date) {
-  const yyyy = d.getFullYear();
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  return `${yyyy}-${mm}-${dd}`;
-}
-
-function formatTimeInput(d: Date) {
-  return d.toTimeString().slice(0, 5);
-}
-
-function parseCloseTimestamp(date: string, time: string): number {
-  return new Date(`${date}T${time}`).getTime();
-}
-
 export function CloseEpisodeDialog({ episode, open, onOpenChange, onClosed }: Props) {
-  const [endDate, setEndDate] = useState(() => formatDateInput(new Date()));
-  const [endTime, setEndTime] = useState(() => formatTimeInput(new Date()));
+  const [endDate, setEndDate] = useState(() => formatCloseDateInput());
+  const [endTime, setEndTime] = useState(() => formatCloseTimeInput());
 
   useEffect(() => {
     if (!open || !episode) return;
-    const lastActivity = getLastActivityForEpisode(episode.id);
-    const defaultTs = lastActivity ?? Date.now();
-    const d = new Date(defaultTs);
-    setEndDate(formatDateInput(d));
-    setEndTime(formatTimeInput(d));
-  }, [open, episode]);
+    const now = new Date();
+    setEndDate(formatCloseDateInput(now));
+    setEndTime(formatCloseTimeInput(now));
+  }, [open, episode?.id]);
+
+  const previewCloseAt = useMemo(
+    () => parseCloseTimestamp(endDate, endTime),
+    [endDate, endTime],
+  );
 
   const handleConfirm = () => {
     if (!episode) return;
-    const closedAt = parseCloseTimestamp(endDate, endTime);
-    if (Number.isNaN(closedAt)) {
+
+    if (Number.isNaN(previewCloseAt)) {
       toast.error("Invalid date or time");
       return;
     }
-    if (closedAt < episode.openedAt) {
+    if (previewCloseAt < episode.openedAt) {
       toast.error("Close time cannot be before episode start");
       return;
     }
 
-    closeEpisode(episode.id, closedAt);
+    closeEpisode(episode.id, previewCloseAt);
     toast.success("Episode closed", {
       description: `${formatEpisodeTitle(episode)} for ${episode.child} is now closed.`,
     });
@@ -69,62 +74,97 @@ export function CloseEpisodeDialog({ episode, open, onOpenChange, onClosed }: Pr
 
   if (!episode) return null;
 
+  const title = formatEpisodeTitle(episode);
+  const logCount = getLogsForEpisode(episode.id).length;
+  const startedLabel = new Date(episode.openedAt).toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+  const sickDays = getSickDays(episode.openedAt, previewCloseAt);
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
+      <DialogContent
+        className="max-w-sm overflow-x-hidden"
+        onOpenAutoFocus={(event) => event.preventDefault()}
+      >
         <DialogHeader>
           <DialogTitle>Close Episode</DialogTitle>
-          <DialogDescription>
-            Confirm when this illness ended. Duration is calculated from start to your chosen
-            close time.
-          </DialogDescription>
         </DialogHeader>
 
-        <div className="rounded-xl border border-border/60 bg-muted/30 px-3 py-2 text-sm">
-          <span className="font-semibold">{formatEpisodeTitle(episode)}</span>
-          <span className="text-muted-foreground"> · {episode.child}</span>
+        <div
+          className="rounded-xl border border-border/60 px-3 py-2.5"
+          style={{
+            borderLeftWidth: 3,
+            borderLeftColor: "var(--episode-open)",
+            background: "var(--episode-open-muted)",
+          }}
+        >
+          <p className="text-sm font-bold text-foreground leading-tight">{title}</p>
+          <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+            <ChildNameBadge name={episode.child} compact />
+            <span>· Started {startedLabel}</span>
+            <span>
+              · {logCount} {logCount === 1 ? "log" : "logs"}
+            </span>
+            <span>
+              · {sickDays} {sickDays === 1 ? "day" : "days"}
+            </span>
+          </div>
+          {episode.notes ? (
+            <p className="mt-2 text-xs text-muted-foreground leading-snug border-t border-border/50 pt-2">
+              {episode.notes}
+            </p>
+          ) : null}
         </div>
 
-        <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-2">
           <div>
             <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
               <Calendar className="h-3 w-3" />
-              End Date
+              End date
             </label>
-            <input
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-border bg-muted/50 px-3 py-2 text-sm outline-none"
-            />
+            <div className={dialogDateWrapClass}>
+              <input
+                type="date"
+                value={endDate}
+                onChange={(e) => setEndDate(e.target.value)}
+                className={dialogDateFieldClass}
+              />
+            </div>
           </div>
           <div>
             <label className="text-xs font-medium text-muted-foreground flex items-center gap-1">
               <Clock className="h-3 w-3" />
-              End Time
+              End time
             </label>
-            <input
-              type="time"
-              value={endTime}
-              onChange={(e) => setEndTime(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-border bg-muted/50 px-3 py-2 text-sm outline-none"
-            />
+            <div className={dialogDateWrapClass}>
+              <input
+                type="time"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+                className={dialogDateFieldClass}
+              />
+            </div>
           </div>
         </div>
 
-        <DialogFooter>
+        <DialogFooter className={dialogFooterClass}>
           <button
-            onClick={() => onOpenChange(false)}
-            className="rounded-xl border border-border px-4 py-2 text-sm font-medium hover:bg-accent"
-          >
-            Cancel
-          </button>
-          <button
+            type="button"
             onClick={handleConfirm}
-            className="rounded-xl px-4 py-2 text-sm font-semibold text-primary-foreground"
-            style={{ background: "var(--gradient-primary)" }}
+            className={dialogPrimaryButtonClass}
+            style={{ background: "var(--primary)" }}
           >
             Close Episode
+          </button>
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            className={dialogSecondaryButtonClass}
+          >
+            Cancel
           </button>
         </DialogFooter>
       </DialogContent>

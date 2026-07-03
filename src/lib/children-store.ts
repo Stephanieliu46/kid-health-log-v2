@@ -107,7 +107,7 @@ export function addChild(name: string): Child {
 
   const gate = evaluateAddChild();
   if (!gate.allowed) {
-    if (gate.reason === "paywall") openPaywall();
+    if (gate.reason === "paywall") openPaywall("add_child");
     throw new Error(
       gate.reason === "max_reached"
         ? "Maximum of 5 child profiles reached."

@@ -1,182 +1,75 @@
-﻿UAT 用户验收测试用例 (User Acceptance Test Cases)
+﻿UAT 用户验收测试用例 (User Acceptance Test Cases) — v2.2
+更新说明 (v2.2 Changelog):
+- v2.1 全部用例保留；本版新增 UI/体验与温度单位、补录时间逻辑相关用例
+- 全局 UI 调整为柔和波西米亚配色（奶油色背景、芥末黄 CTA、桃色/灰蓝辅助色）
+- Dashboard / Episodes 孩子选择、时间范围、+ New Episode 等按钮统一为紧凑尺寸（text-sm / py-2）
+- Settings → Preferences 新增 Temperature unit：Celsius (°C) / Fahrenheit (°F)，英文界面
+- 温度按用户所选单位写入 localStorage（含 tempUnit 字段）；切换单位时历史 Log 自动换算迁移
+- Quick Log 用药安全间隔：以用户输入的 date+time 为基准，与上次给药比较（非当前系统时间）
+- 24h 每日剂量上限：以输入的 Log 时间为终点向前滚动 24h；若录入时间距今 ≥24h 则不触发上限警告
+- NHS Safety Warning 改为橘色高对比弹窗，仅保留警告正文，移除嵌入 Medical Disclaimer 与底部责任小字
+- 补录过去时间的 Log 后，Open Episode 的 openedAt 自动对齐为该 Episode 最早一条 Log 时间
+- Episodes 列表页与 Episode 详情页支持内容超出一屏时纵向滚动（顶部标题区固定）
+
+验收记录 (v2.2): 2026-06-14 · 静态代码穿透审查
+
 一、游客登录与多孩管理 (Guest Flow & Child Profiles)
-用例编号
-功能模块
-测试场景 (User Scenario)
-操作步骤 (Steps)
-预期结果 (Expected Result)
-状态 (Status)
-UAT-01
-初始无感流
-新用户首次打开 App 页面
-1. 清空浏览器缓存后重新打开 App 网页。
-2. 观察首屏表现。
-直接秒进 Dashboard 首页，没有任何邮箱或强行注册拦截。默认展示第 1 个孩子（My Child）。
-Not Started
-UAT-02
-免费版多孩红线
-免费状态下尝试添加第 2 个孩子
-1. 进入 Settings 页面。
-2. 点击 [ ➕添加儿童 ] 录入第 2 个名字。
-拦截成功。系统阻止添加，并弹出【Pro 升级买断弹窗】。
-Not Started
-UAT-03
-Pro版多孩上限
-模拟激活 Pro 账户后，添加多个孩子
-1. 模拟点击支付，激活isPro: true。
-2. 在 Settings 里连续添加孩子，直到尝试添加第 6 个。
-1. 前 5 个孩子均成功创建并可自由切换。
-2. 第 6 个孩子无法添加，按钮变灰，提示："Maximum of 5 child profiles reached"。
-Not Started
-UAT-04
-孩子档案管理
-修改与删除孩子信息
-1. 点击孩子名字旁的【小铅笔】，修改名字并保存。
-2. 点击【垃圾桶】尝试删除。
-1. 名字成功更新并全站联动。
-2. 弹出二次确认警告：“删除孩子将同步清空其所有历史病例”，确认后数据被安全物理粉碎。
-Not Started
+用例编号 | 功能模块 | 测试场景 (User Scenario) | 操作步骤 (Steps) | 预期结果 (Expected Result) | 状态
+UAT-01 | 初始无感流 | 新用户首次打开 App 页面 | 1. 清空浏览器缓存后重新打开 App 网页。2. 观察首屏与合规弹窗。3. 点击 [I Understand / Agree]。 | 1. 秒进 Quick Log 首页（/），无注册拦截；默认选中 My Child；底部导航可见。2. 首次启动弹出 Medical Disclaimer 弹窗，文案含 "By using this app, you agree to our Medical Disclaimer." 及完整英文免责条款。3. 点击同意后弹窗关闭且不再出现（kidhealth.disclaimer.v1 写入 localStorage），可正常 Save 记录。 | Not Started
+UAT-02 | 免费版多孩红线 | 免费状态下尝试添加第 2 个孩子 | 1. 进入 Settings 页面。2. 点击 [Add] 录入第 2 个名字。 | 拦截成功。系统阻止添加，并弹出 Pro 升级买断弹窗（PaywallModal）。 | PASS
+UAT-03 | Pro版多孩上限 | 模拟激活 Pro 账户后，添加多个孩子 | 1. 模拟点击支付，激活 isPro: true。2. 在 Settings 里连续添加孩子，直到尝试添加第 6 个。 | 1. 前 5 个孩子均成功创建并可自由切换。2. 第 6 个孩子无法添加，Add 按钮变灰，提示："Maximum of 5 child profiles reached"。 | PASS
+UAT-04 | 孩子档案管理 | 修改与删除孩子信息 | 1. 点击孩子名字旁的铅笔图标，修改名字并保存。2. 点击垃圾桶尝试删除。 | 1. 名字成功更新并全站联动（Logs、Episodes、Quick Log 下拉均更新）。2. 弹出英文二次确认："Deleting this child will also permanently remove all their illness episodes and log entries. This cannot be undone." 确认后数据从 localStorage 彻底删除。 | PASS
+
 二、 Episode（疾病事件）增删改查 (Episode CRUD)
-用例编号
-功能模块
-测试场景 (User Scenario)
-操作步骤 (Steps)
-预期结果 (Expected Result)
-状态 (Status)
-UAT-05
-创建首个 Episode
-免费版用户首次记录生病
-1. 在首页点击 [ ➕开始新病例 (Start New Episode) ]。
-2. 选择疾病标签（如 Cough）。
-1. 成功创建第 1 个 Open 状态的 Episode。
-2. 首页看板正确渲染该 Episode 的时间轴。
-Not Started
-UAT-06
-疾病标签多选追加
-疾病中途出现并发症 (并发并入)
-1. 在该 Cough 历史下，通过 Quick Log 勾选并录入一条全新的“发烧 39.5°C”记录。
-2. 保存并返回。
-1. 记录保存成功。
-2. 系统的illnessType自动并入新标签。Dashboard 上的病例标题动态更新为组合名："Cough, Cold & Fever"。
-Not Started
-UAT-07
-免费版第二次生病
-免费版遇到第二次深夜生病 (深夜5次免死金牌)
-1. 手动关闭第 1 个 Episode（此时本地有 1 个历史病历）。
-2. 模拟深夜再次点击 Start New Episode 并尝试录入数据。
-无条件放行！允许顺利创建第 2 个新 Episode，并在前 5 条 Log 内绝不弹窗打扰要钱。底部打上紧急模式标签。
-Not Started
-UAT-08
-收费墙超时/超额拦截
-紧急通道额度耗尽拦截
-1. 在 UAT-07 的紧急 Episode 下录入第 6 条 Log，或等待该事件创建超过 12 小时。
-2. 再次打开 App 或尝试写入。
-切断操作。系统强势且温馨地弹出【App Store 永久买断付费弹窗 (£2.99)】，锁定前5次紧急数据。
-Not Started
-UAT-09
-查看与切换历史病历
-查阅过去的生病档案
-1. 切换到“历史档案（History / Timeline）”页面。
-2. 点击查看过去已关闭的 Episode。
-1. 可以清晰查阅该 Episode 下的所有历史体温和用药明细。
-2. 界面处于 Read-only（只读状态）或提供明确的编辑入口。
-Not Started
+用例编号 | 功能模块 | 测试场景 (User Scenario) | 操作步骤 (Steps) | 预期结果 (Expected Result) | 状态
+UAT-05 | 创建首个 Episode | 免费版用户首次记录生病 | 1. 在 Quick Log 首页直接录入一条 Log（如选择 Cough 标签或录入体温/用药）。2. 点击 Save。3. 切换到 Episodes 页面查看。 | 1. 后台自动创建第 1 个 Open 状态的 Episode 并关联该 Log。2. Quick Log 顶部 banner 显示当前 Episode 标题。3. Episodes 页 Open Episodes 区块展示该 Episode 及 mini 时间轴预览；点击进入 Episode 详情可查看完整时间轴。Quick Log 本身不展示时间轴。 | PASS
+UAT-06 | 疾病标签多选追加 | 疾病中途出现并发症 (并发并入) | 1. 在该 Cough Episode 下，通过 Quick Log 录入一条 39.5°C 记录（可不选手动标签）。2. 保存并查看 Episodes / Dashboard。 | 1. 记录保存成功。2. illnessType 自动并入新标签，Episode 标题动态更新为组合名，如 "Cough, Cold & Fever"。 | PASS
+UAT-07 | 免费版第二次生病 | 免费版遇到第二次生病 (Emergency Pass) | 1. 手动关闭第 1 个 Episode（此时本地有 1 个 closed 病历）。2. 再次通过 Quick Log 或 Episodes → New Episode 录入数据（任意时间段，无深夜限制）。 | 无条件放行！允许创建第 2 个新 Episode（isEmergencyPass: true），前 5 条 temp/med Log 内不弹收费墙。Episode 列表或 toast 显示 Emergency Pass 标识。 | PASS
+UAT-08 | 收费墙超时/超额拦截 | 紧急通道额度耗尽拦截 | 1. 在 UAT-07 的紧急 Episode 下录入第 6 条 temp/med Log，或等待该 Episode 创建超过 12 小时。2. 再次打开 App 或尝试写入。 | 切断新写入操作。弹出 Pro 升级弹窗（£2.99，当前为 mock IAP）。已保存的前 5 条紧急 Log 仍可在 Episodes / Episode 详情中查看（localStorage 只读保留，非物理删除）。 | PASS
+UAT-09 | 查看与切换历史病历 | 查阅过去的生病档案 | 1. 切换到 Episodes 页面。2. 点击查看 Closed Episodes 中的历史 Episode。 | 1. 可清晰查阅该 Episode 下所有历史体温和用药明细。2. 已关闭 Episode 仍可通过 Edit 入口修改 Log 及 Episode 元数据（非只读）。 | PASS
+UAT-32 | Episode 开始时间回拨 | 补录过去时间后 Episode 起点对齐 | 1. 当前 Open Episode 的 openedAt 为今天。2. 在 Quick Log 将 date/time 设为昨天，录入一条 Log 并 Save。3. 进入 Episode 详情查看 Started 日期。 | 1. Log 保存成功。2. Episode openedAt 自动更新为该 Episode 内最早 Log 的 date+time（显示为昨天）。3. Episodes 列表中 started 日期同步更新。 | Not Started
+
 三、 Log（日志明细）增删改查 & 安全锁 (Log CRUD & Safety Lock)
-用例编号
-功能模块
-测试场景 (User Scenario)
-操作步骤 (Steps)
-预期结果 (Expected Result)
-状态 (Status)
-UAT-10
-基础 Log 极速录入
-录入体温或给药记录
-1. 在 Quick Log 页面录入：38.5°C，药物选择 Calpol, 剂量 5ml。
-2. 点击保存。
-1. 时间轴上立刻生成一条最新 Log。
-2. 【用药安全锁核心激活】：首页醒目展示 Calpol 的安全倒计时（如：“距离下次可用还剩 03:59:59”）。
-Not Started
-UAT-11
-安全倒计时越狱拦截
-在安全锁冷却期内，再次尝试喂同一种药
-1. 距离上次喂 Calpol 仅过去 2 小时。
-2. 再次打开 Quick Log 尝试勾选Calpol 提交。
-拦截成功！界面强制弹出高危红色警告：“Calpol 安全间隔未到！上次服药于 2小时前，强行给药有超量风险！”必须提供两段式强行解锁或彻底阻断。
-Not Started
-UAT-12
-修改历史 Log
-补录或修正过去某次记错的体温
-1. 选中时间轴上 3 小时前的一条 39.0°C 的历史 Log。
-2. 点击“编辑（Edit）”，把体温改成 38.8°C 并保存。
-1. 该条 Log 数据成功被更新。
-2. 首页的最新体温趋势折线图/卡片同步更新为 38.8°C，没有数据滞后。
-Not Started
-UAT-13
-删除历史 Log
-误触录入，需要彻底擦除单条记录
-1. 点击某条误录入的 Log 旁的【删除】按钮。
-2. 弹出确认框后点击确认。
-1. 该条 Log 从本地LocalStorage中被彻底抹去。
-2. 如果删除的是最近一次给药，对应的安全锁倒计时必须自动解除/重新计算！
-Not Started
+用例编号 | 功能模块 | 测试场景 (User Scenario) | 操作步骤 (Steps) | 预期结果 (Expected Result) | 状态
+UAT-10 | 基础 Log 极速录入 | 录入体温或给药记录 | 1. 在 Quick Log 录入 38.5°C，药物选择 Paracetamol（英国商品名 Calpol），剂量 5ml（亦可选 2.5ml）。2. 点击 Save。 | 1. Episodes 时间轴 / Episode 详情立刻出现该 Log。2. Quick Log Paracetamol 卡片下方显示安全倒计时（如 `03:59:59`，基于 4 小时间隔）。 | PASS
+UAT-11 | 安全间隔拦截 | 在安全锁冷却期内再次尝试喂同一种药 | 1. 刚录入 Paracetamol（以当前时间为 Log 时间）。2. 保持 date/time 为现在，2 小时内再次选择 Paracetamol 并 Save。 | 拦截成功。弹出橘色背景 NHS Safety Warning（英文），标题与正文高对比可读；仅显示间隔分钟数与 4 小时建议；提供 Cancel 与 Proceed Anyway；不显示嵌入 Medical Disclaimer 区块。 | Not Started
+UAT-12 | 修改历史 Log | 补录或修正过去记错的体温 | 1. 在 Episodes 时间轴或 Episode 详情选中 3 小时前一条 39.0°C 的 Log。2. 点击 Edit，改为 38.8°C 并保存。 | 1. 该条 Log 在 localStorage 中成功更新。2. Episodes mini 时间轴及 Episode 详情页同步显示 38.8°C，无数据滞后。 | PASS
+UAT-13 | 删除历史 Log | 误触录入，需擦除单条记录 | 1. 在 Episode 详情页点击某条 Log 旁的删除按钮。2. 在确认框点击 Delete。 | 1. 该 Log 从 localStorage 彻底删除。2. 若删除的是最近一次给药，Quick Log 提示自动解除、按更早记录重算倒计时，或（间隔已过）显示绿色 "Ready for Next Dose"（见 UAT-23）。 | PASS
+UAT-23 | 药物安全锁超时解除 | 药物安全锁超时解除与精简时间差显示验证 | 1. 录入一条 5 小时前的 Paracetamol 记录（已超过 4 小时限制）。2. 打开 Quick Log 页面，查看 Paracetamol 卡片下方提示。 | Quick Log 该药物卡片下方由倒计时转为绿色精简提示，精确渲染 "🟢 Ready for Next Dose" 及 "Last Dose: [时间] (5h 0m ago)"，无其余多余文本，时间差计算准确。 | Not Started
+UAT-25 | 24h 每日剂量上限拦截 | Paracetamol 24h 内第 5 次给药拦截 | 1. 为同一孩子在以当前 Log 时间为终点的滚动 24h 内录入 4 条 Paracetamol（间隔均 >4h）。2. 第 5 次保持当前时间，在 Quick Log 选择剂量或 Save。 | 弹出红色 Modal "⚠️ Maximum Daily Dose Exceeded"，正文含 4 times / 4 doses 英文说明；[ Cancel ] 高亮推荐；[ Proceed Anyway (Risk Assumed) ] 可强行继续。 | Not Started
+UAT-26 | 24h 每日剂量上限拦截 | Ibuprofen 24h 内第 4 次给药拦截 | 1. 为同一孩子在以当前 Log 时间为终点的滚动 24h 内录入 3 条 Ibuprofen。2. 第 4 次选择剂量或 Save。 | 弹出红色 Maximum Daily Dose Exceeded Modal，正文为 Ibuprofen 3 times / 3 doses 英文说明。 | Not Started
+UAT-27 | Episodes 时间线排序 | Episodes 按时间线展示 Log | 1. 在同一 Episode 内交错录入用药 Log 与仅体温 Log。2. 查看 Episodes mini 预览与 Episode 详情页。 | 全部 Log 严格按 date+time 倒序排列（最新在最上）；用药与体温无优先级差异。mini 预览为最近 3 条。 | Not Started
+UAT-28 | 补录时间不触发误报间隔 | 补录昨天记录不受今天给药影响 | 1. 今天刚录入一条 Paracetamol（当前时间）。2. 在 Quick Log 将 date/time 改为昨天，选择 Paracetamol 并 Save。 | 不因「今天刚给药」误弹 NHS Safety Warning。系统仅比较昨天 Log 时间与昨天之前的历史给药间隔。 | Not Started
+UAT-29 | 补录历史不触发 24h 上限 | 录入 ≥24h 前的历史用药 | 1. 今天滚动 24h 内已满 4 次 Paracetamol。2. 将 Quick Log date/time 设为 2 天前，录入 Paracetamol 并 Save。 | 不弹出 Maximum Daily Dose Exceeded。历史补录视为 ≥24h 前记录，跳过当日滚动上限检查。 | Not Started
+
 四、 5+5 天阶梯式静默结算与时间校准 (Data Lifecycle & Date Alignment)
-用例编号
-功能模块
-测试场景 (User Scenario)
-操作步骤 (Steps)
-预期结果 (Expected Result)
-状态 (Status)
-UAT-14
-第 5 天静默初次提醒
-孩子病好了，家长连续 5 天没有录入任何新数据
-1. 模拟将本地当前 Open 的 Episode 最后一条 Log 时间往前调整 120 小时（5天）。
-2. 重新打开 App。
-首页阻断。啪弹出初次温馨提示卡片："Is your child fully recovered? 🌟 No records for 5 days. We recommend closing this episode..."
-Not Started
-UAT-15
-静默期抗疲劳机制
-家长在第 5 天弹窗时点击了 [ Keep Open ]
-1. 在 UAT-14 弹窗中点击 [ Keep Open ]。
-2. 接下来的 1-4 天内，频繁关闭并重新打开 App。
-完美静默。系统极其聪明，在这期间打开 App 畅通无阻，绝对不再重复弹窗打扰家长。
-Not Started
-UAT-16
-第 10 天二次严肃提醒
-过了 10 天依然没动静，进行最终核查
-1. 模拟将无记录时间推进到第 10 天（240小时）。
-2. 重新打开 App。
-首页再次弹出严肃文案卡片："To ensure the absolute accuracy of your child's future health trend charts..."提示核对数据。若再次选 Keep Open，系统彻底闭嘴，永不弹窗。
-Not Started
-UAT-17
-关闭时间回拨与图表精准度校准
-家长在周三手动关闭病例，但选择将痊愈时间回拨到周一
-1. 点击关闭 Episode（无论主动还是通过弹窗）。
-2. 在 End Date Picker 中，手动把时间往回拨 48 小时并保存。
-1. 病例成功标记为 Closed。
-2. 该 Episode 的总生病时长（Duration）严格按照【周一 - 开始时间】计算。
-3. Dashboard 的跨月度生病趋势堆叠柱状图高度精准联动，没有被周一到周三这两天的空白期拉长。
-Not Started
+用例编号 | 功能模块 | 测试场景 (User Scenario) | 操作步骤 (Steps) | 预期结果 (Expected Result) | 状态
+UAT-14 | 第 5 天静默初次提醒 | 连续 5 天无新 Log | 1. 将当前 Open Episode 最后一条 Log 时间往前调 120 小时（5 天）。2. 重新打开 App（任意 Tab）。 | 全局弹出初次温馨提示："Is your child fully recovered? 🌟" / "No records for 5 days. We recommend closing this episode..." 提供 Close Episode 与 Keep Open。 | PASS
+UAT-15 | 静默期抗疲劳机制 | 第 5 天弹窗点击 Keep Open | 1. 在 UAT-14 弹窗点击 Keep Open。2. 接下来 1–4 天内频繁开关 App。 | 完美静默。此期间不再重复弹窗。 | PASS
+UAT-16 | 第 10 天二次严肃提醒 | 累计 10 天无动静 | 1. 将无记录时间推进到 240 小时（距上次 Keep Open 再满 5 天）。2. 重新打开 App。 | 再次弹出严肃文案："To ensure the absolute accuracy of your child's future health trend charts, please verify if this week-old episode has ended." 若再次 Keep Open，设置 reminder_exhausted，永不弹窗。 | PASS
+UAT-17 | 关闭时间回拨与图表校准 | 手动回拨痊愈时间 | 1. 关闭 Episode，在 End Date Picker 将时间回拨 48 小时。2. 查看 Duration 与 Dashboard 图表。 | 1. Episode 标记为 Closed。2. Duration 按回拨后的 closedAt 计算。3. Dashboard 堆叠柱状图高度联动缩短，无多余空白天数。 | PASS
+
 五、 Pro 用户购买成功与功能解锁检测 (Pro Purchase & Provisioning Flow)
-用例编号
-功能模块
-测试场景 (User Scenario)
-操作步骤 (Steps)
-预期结果 (Expected Result)
-状态 (Status)
-UAT-18
-支付拉起与加载状态
-在 Settings 或收费墙点击购买
-1. 处于免费版限制状态。
-2. 点击收费墙或设置页的 [ 💳 Upgrade for £2.99 ] 按钮。
-1. 界面立刻进入不可点击的 Loading 状态，渲染 2 秒钟苹果原生 IAP 支付旋转动画。
-2. 此时狂点背景或其他按钮应无效（防用户重复点击二次扣款）。
-Not Started
-UAT-19
-权益瞬间无损下发
-模拟苹果底层返回支付成功凭证（Receipt）
-1. 2秒动画结束，模拟底层返回 success。
-2. 观察全局状态变量isPro和当前操作界面。
-1. 弹出精美提示："Purchase Successful! Thank you for supporting KidHealth."
-2. 全局isPro瞬间变为 true 并写入LocalStorage。
-3. 原本被切断的第 6 次 Log 或添加第 2 个孩子操作无需刷新，直接无损转正通过！
-Not Started
+用例编号 | 功能模块 | 测试场景 (User Scenario) | 操作步骤 (Steps) | 预期结果 (Expected Result) | 状态
+UAT-18 | 支付拉起与加载状态 | Settings 或收费墙点击购买 | 1. 免费版受限状态。2. 点击 Upgrade for £2.99。 | 1. 立刻进入 Loading（2 秒 mock IAP，Loader 旋转）。2. 全屏遮罩覆盖含底部导航，背景与其他按钮均不可点击，防重复扣款。 | PASS
+UAT-19 | 权益瞬间无损下发 | mock 支付成功 | 1. 2 秒动画结束。2. 观察 isPro 与当前界面。 | 1. Toast："Purchase Successful!"（含 Pro unlocked 描述）。2. isPro 写入 localStorage。3. 被阻断的第 6 次 Log 或添加第 2 个孩子无需刷新即可继续。 | PASS
+
+六、 法律合规与免责声明 (Legal & Medical Disclaimer)
+用例编号 | 功能模块 | 测试场景 (User Scenario) | 操作步骤 (Steps) | 预期结果 (Expected Result) | 状态
+UAT-20 | Settings 免责声明入口 | 设置页查看 Medical Disclaimer | 1. 进入 Settings 页面。2. 滚动至底部，点击 [Medical Disclaimer & Privacy Policy]。 | 1. 页面底部版本号下方可见永久入口链接。2. 点击后弹出完整 Medical Disclaimer（四段英文）及 Privacy Policy（本地存储说明），可 Close 关闭；再次进入 Settings 仍可重复查看。 | Not Started
+
+七、 Dashboard 数据分析 (Dashboard Analytics)
+用例编号 | 功能模块 | 测试场景 (User Scenario) | 操作步骤 (Steps) | 预期结果 (Expected Result) | 状态
+UAT-24 | Dashboard - Fever Trend Tracker | Fever Trend Tracker 历史发烧事件切换与精准渲染验证 | 前置：该孩子档案下至少 2 次含 Fever 标签 Episode。【场景 A】1. 创建 Open 且含 Fever 的新 Episode，录入多条不同体温。2. 观察 Dashboard Fever Trend Tracker。【场景 B】1. 关闭当前发烧 Episode。2. 刷新 Dashboard。3. 点击右上角下拉切换更早历史发烧 Episode。 | 【场景 A】卡片高亮；下拉默认 "🟢 Current Fever Episode"；线型图精准连线该次全部体温；Y 轴范围随当前温度单位显示（°C 35.0–41.5 或等效 °F）。【场景 B】无 Open 发烧时不留白，默认渲染最近 Closed 曲线；下拉可见历史日期列表；切换后曲线正确刷新。 | PASS
+
+八、 温度单位与 UI 体验 (Temperature Unit & UI/UX)
+用例编号 | 功能模块 | 测试场景 (User Scenario) | 操作步骤 (Steps) | 预期结果 (Expected Result) | 状态
+UAT-30 | 温度单位设置 | Settings 切换 Celsius / Fahrenheit | 1. 进入 Settings → Preferences → Temperature unit。2. 点击 Fahrenheit (°F)。3. 返回 Quick Log 查看滑块与读数。 | 1. 英文分段按钮高亮 Fahrenheit。2. Quick Log 温度显示 °F，滑块范围约为 98.6–107.6°F。3. 新 Save 的 Log 以 °F 数值写入 localStorage（tempUnit: fahrenheit）。 | Not Started
+UAT-31 | 历史温度单位迁移 | 切换单位后旧记录同步换算 | 1. 在 Celsius 下已有若干 38.x°C 记录。2. Settings 切换为 Fahrenheit。3. 查看 Episodes / Episode 详情 / Dashboard 图表。 | 1. 所有旧 Log 自动换算为 °F 并更新 tempUnit（如 38.7°C → 101.7°F）。2. 全站显示一致，无残留 °C 数值。3. 再切回 Celsius 时数值正确反向换算。 | Not Started
+UAT-33 | Episodes 列表滚动 | Episodes 页内容超出一屏 | 1. 创建多个 Episode 或较长 Open Episode 列表使页面超过一屏高度。2. 在 Episodes 页面向下滑动。 | 1. 顶部标题与孩子选择 tabs 保持可见。2. Open / Closed Episodes 列表可纵向滚动浏览全部内容。 | Not Started
+UAT-34 | Episode 详情滚动 | Episode 详情 Log 较多 | 1. 在同一 Episode 内录入 10+ 条 Log。2. 进入 Episode 详情页下滑。 | 1. 返回链接与 Episode 标题区固定。2. Log 列表与底部操作按钮区域可滚动，可查看全部记录。 | Not Started
+UAT-35 | 紧凑按钮统一 | Dashboard / Episodes 顶部控件尺寸 | 1. 打开 Dashboard 与 Episodes。2. 观察孩子选择 tabs、时间范围按钮、+ New Episode 按钮。 | 孩子 tabs、3/6/12 months 时间范围、+ New Episode（虚线）及主 CTA 均为紧凑统一尺寸（约 text-sm、py-2），无过大 padding。 | Not Started
+UAT-36 | 波西米亚配色 | 全局视觉风格 | 1. 浏览 Quick Log、Episodes、Dashboard、Settings。 | 页面呈现柔和波西米亚配色：奶油色背景、芥末黄主按钮、鼠尾草绿/桃色/灰蓝辅助色；整体温暖可读。 | Not Started
+
+汇总: PASS 18 / Not Started 18 / WARNING 0 / FAIL 0
+（v2.2 新增 UAT-28–31、33–36；UAT-32；并更新 UAT-11、25、26、24 预期）

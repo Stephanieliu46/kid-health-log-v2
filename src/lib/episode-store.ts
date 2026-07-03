@@ -6,6 +6,7 @@ import {
   mergeDiseaseTypes,
   normalizeDiseaseTypes,
 } from "./disease-types";
+import { getEarliestLogTimestampForEpisode } from "./log-store";
 
 export type EpisodeStatus = "open" | "closed";
 
@@ -16,6 +17,8 @@ export type Episode = {
   notes: string | null;
   status: EpisodeStatus;
   openedAt: number;
+  /** When this episode record was created in the app (for backfill vs ongoing detection). */
+  createdAt?: number;
   closedAt?: number;
   /** How many idle reminders have been shown (0, 1, or 2). */
   reminderCount?: number;
@@ -66,6 +69,7 @@ function normalizeEpisode(raw: LegacyEpisode): Episode {
     notes: raw.notes ?? null,
     status: raw.status ?? "open",
     openedAt: raw.openedAt ?? Date.now(),
+    createdAt: raw.createdAt ?? raw.openedAt ?? Date.now(),
     closedAt: raw.closedAt,
     reminderCount: raw.reminderCount ?? 0,
     reminderSnoozedAt: raw.reminderSnoozedAt,
@@ -154,7 +158,7 @@ export function getDefaultEpisodeForChild(child: string): Episode | null {
 export function resolveEpisodeForQuickLog(
   child: string,
   logDiseaseTypes: string[],
-  options?: { isEmergencyPass?: boolean },
+  options?: { isEmergencyPass?: boolean; logTimestamp?: number },
 ): Episode {
   initFromStorage();
   const open = getDefaultEpisodeForChild(child);
@@ -166,7 +170,7 @@ export function resolveEpisodeForQuickLog(
 
   const types =
     logDiseaseTypes.length > 0 ? logDiseaseTypes : [DEFAULT_DISEASE_TYPE];
-  const episode = createEpisode(child, types, Date.now(), {
+  const episode = createEpisode(child, types, options?.logTimestamp ?? Date.now(), {
     isEmergencyPass: options?.isEmergencyPass,
   });
   setDefaultEpisodeForChild(child, episode.id);
@@ -215,6 +219,7 @@ export function createEpisode(
     notes: null,
     status: "open",
     openedAt,
+    createdAt: Date.now(),
     reminderCount: 0,
     reminder_exhausted: false,
     isEmergencyPass: options?.isEmergencyPass ?? false,
@@ -231,6 +236,28 @@ export function closeEpisode(id: string, closedAt: number = Date.now()) {
       e.id === id ? { ...e, status: "closed" as const, closedAt } : e,
     ),
   );
+}
+
+export function reopenEpisode(id: string) {
+  initFromStorage();
+  const episode = cache.find((e) => e.id === id);
+  if (!episode) throw new Error("Episode not found.");
+  if (episode.status !== "closed") throw new Error("Episode is already open.");
+
+  write(
+    cache.map((e) => {
+      if (e.id !== id) return e;
+      const { closedAt: _closedAt, ...rest } = e;
+      return {
+        ...rest,
+        status: "open" as const,
+        reminderCount: 0,
+        reminderSnoozedAt: undefined,
+        reminder_exhausted: false,
+      };
+    }),
+  );
+  setDefaultEpisodeForChild(episode.child, id);
 }
 
 export function snoozeEpisodeReminder(id: string) {
@@ -292,6 +319,17 @@ export function updateEpisode(
       return next;
     }),
   );
+}
+
+/** Align open episode start with the earliest logged entry in that episode. */
+export function syncEpisodeOpenedAtFromLogs(episodeId: string) {
+  const episode = getEpisode(episodeId);
+  if (!episode || episode.status !== "open") return;
+
+  const earliest = getEarliestLogTimestampForEpisode(episodeId);
+  if (earliest === null || earliest >= episode.openedAt) return;
+
+  updateEpisode(episodeId, { openedAt: earliest });
 }
 
 export function deleteEpisode(id: string) {

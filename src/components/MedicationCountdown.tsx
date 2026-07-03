@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import { Clock } from "lucide-react";
-import { useLogs } from "@/lib/log-store";
+import { getLastDrugDoseTimestamp, useLogs } from "@/lib/log-store";
+import {
+  checkDailyMaxDose,
+  countDrugDosesInRollingWindow,
+  MAX_DOSES_IN_24H,
+} from "@/lib/medication-safety";
 import { type Drug } from "@/lib/medications";
 
 const INTERVAL_MS: Record<Drug, number> = {
@@ -16,38 +21,61 @@ function formatCountdown(ms: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
 }
 
-function getDrugCountdownRemaining(
-  logs: ReturnType<typeof useLogs>,
-  child: string,
-  drug: Drug,
-  now: number,
-): number | null {
-  let latest: number | null = null;
-  for (const log of logs) {
-    if (log.child !== child || log.drug !== drug) continue;
-    const ts = new Date(`${log.date}T${log.time}`).getTime();
-    if (Number.isNaN(ts)) continue;
-    if (latest === null || ts > latest) latest = ts;
+function isSameCalendarDay(a: Date, b: Date): boolean {
+  return (
+    a.getFullYear() === b.getFullYear() &&
+    a.getMonth() === b.getMonth() &&
+    a.getDate() === b.getDate()
+  );
+}
+
+/** e.g. "Yesterday 11:30 PM" or "Today 3:45 PM" */
+export function formatLastDoseLabel(timestamp: number, now: number = Date.now()): string {
+  const doseDate = new Date(timestamp);
+  const nowDate = new Date(now);
+  const timeLabel = doseDate.toLocaleTimeString("en-US", {
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+
+  if (isSameCalendarDay(doseDate, nowDate)) {
+    return `Today ${timeLabel}`;
   }
-  if (latest === null) return null;
-  const remaining = INTERVAL_MS[drug] - (now - latest);
-  return remaining > 0 ? remaining : null;
+
+  const yesterday = new Date(nowDate);
+  yesterday.setDate(yesterday.getDate() - 1);
+  if (isSameCalendarDay(doseDate, yesterday)) {
+    return `Yesterday ${timeLabel}`;
+  }
+
+  const dateLabel = doseDate.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+  return `${dateLabel} ${timeLabel}`;
+}
+
+/** e.g. "8h 45m ago" or "5h 0m ago" */
+export function formatElapsedAgo(elapsedMs: number): string {
+  const totalMinutes = Math.floor(Math.max(0, elapsedMs) / 60_000);
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  return `${h}h ${m}m ago`;
 }
 
 /** Inline countdown shown below dose buttons on each drug card. */
 export function DoseCountdown({
   child,
   drug,
-  inverted = false,
   compact = false,
 }: {
   child: string;
   drug: Drug;
-  /** White text when dose card is selected. */
-  inverted?: boolean;
   compact?: boolean;
 }) {
-  const logs = useLogs();
+  useLogs();
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
@@ -55,17 +83,54 @@ export function DoseCountdown({
     return () => clearInterval(id);
   }, []);
 
-  const remaining = getDrugCountdownRemaining(logs, child, drug, now);
-  if (remaining === null) return null;
+  const lastDose = getLastDrugDoseTimestamp(child, drug);
+  const dailyMax = checkDailyMaxDose(child, drug, now);
+  const doseCount24h = countDrugDosesInRollingWindow(child, drug, now);
+  const maxDoses24h = MAX_DOSES_IN_24H[drug];
+
+  if (dailyMax) {
+    return (
+      <div
+        className={`rounded-md text-center leading-snug font-semibold border ${
+          compact ? "mt-1 px-1.5 py-1 text-[10px]" : "mt-2 px-2 py-1.5 text-xs"
+        } bg-[var(--muted)] text-destructive border-[var(--border)]`}
+      >
+        {doseCount24h}/{maxDoses24h} doses in 24h — limit reached
+      </div>
+    );
+  }
+
+  if (lastDose === null) return null;
+
+  const elapsed = now - lastDose;
+  const remaining = INTERVAL_MS[drug] - elapsed;
+
+  if (remaining > 0) {
+    return (
+      <div
+        className={`flex items-center justify-center gap-1 rounded-md font-semibold tabular-nums border ${
+          compact ? "mt-1 px-1.5 py-0.5 text-[10px]" : "mt-2 gap-1.5 rounded-lg px-2 py-1.5 text-xs"
+        } bg-[var(--muted)] text-muted-foreground border-[var(--border)]`}
+      >
+        <Clock className={`shrink-0 ${compact ? "h-2.5 w-2.5" : "h-3.5 w-3.5"}`} />
+        <span>{formatCountdown(remaining)}</span>
+      </div>
+    );
+  }
+
+  const lastDoseLabel = formatLastDoseLabel(lastDose, now);
+  const elapsedAgo = formatElapsedAgo(elapsed);
 
   return (
     <div
-      className={`flex items-center justify-center gap-1 rounded-md font-semibold tabular-nums ${
-        compact ? "mt-1.5 px-2 py-1 text-xs" : "mt-2 gap-1.5 rounded-lg px-2 py-1.5 text-xs"
-      } ${inverted ? "bg-white/15 text-white/90" : "bg-primary/10 text-primary"}`}
+      className={`rounded-md text-center leading-snug badge-success ${
+        compact ? "mt-1 px-1.5 py-1 text-[10px]" : "mt-2 px-2 py-1.5 text-xs"
+      }`}
     >
-      <Clock className={`shrink-0 ${compact ? "h-3 w-3" : "h-3.5 w-3.5"}`} />
-      <span>{formatCountdown(remaining)}</span>
+      <div className="font-semibold">Ready for Next Dose</div>
+      <div className="mt-0.5 tabular-nums opacity-80">
+        Last Dose: {lastDoseLabel} ({elapsedAgo})
+      </div>
     </div>
   );
 }

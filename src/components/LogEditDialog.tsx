@@ -13,7 +13,19 @@ import { useEpisodes, formatEpisodeTitle } from "@/lib/episode-store";
 import { DoseCard } from "@/components/DoseCard";
 import { DOSE_AMOUNTS_ML, type Drug } from "@/lib/medications";
 import { Input } from "@/components/ui/input";
+import {
+  dialogFooterClass,
+  dialogPrimaryButtonClass,
+  dialogSecondaryButtonClass,
+} from "@/lib/dialog-ui";
 import { TemperatureScale } from "@/components/TemperatureScale";
+import {
+  convertTemp,
+  getSliderConfig,
+  getTempColorClass,
+  getTempUnitSymbol,
+} from "@/lib/temperature";
+import { useTemperatureUnit } from "@/lib/temperature-unit-store";
 
 type Props = {
   log: LogEntry | null;
@@ -24,6 +36,8 @@ type Props = {
 
 export function LogEditDialog({ log, open, onOpenChange, onSaved }: Props) {
   const episodes = useEpisodes();
+  const temperatureUnit = useTemperatureUnit();
+  const sliderConfig = getSliderConfig(temperatureUnit);
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
   const [temp, setTemp] = useState(37.5);
@@ -41,7 +55,11 @@ export function LogEditDialog({ log, open, onOpenChange, onSaved }: Props) {
     if (!log) return;
     setDate(log.date);
     setTime(log.time);
-    setTemp(log.temp ?? 37.5);
+    setTemp(
+      log.temp === null
+        ? sliderConfig.default
+        : convertTemp(log.temp, log.tempUnit, temperatureUnit),
+    );
     setNoTemp(log.temp === null);
     setDose(
       log.drug && log.amount
@@ -57,7 +75,7 @@ export function LogEditDialog({ log, open, onOpenChange, onSaved }: Props) {
     );
     setNotes(log.notes ?? "");
     setEpisodeId(log.episodeId);
-  }, [log]);
+  }, [log, temperatureUnit, sliderConfig.default]);
 
   const childEpisodes = log
     ? episodes.filter((e) => e.child === log.child)
@@ -73,6 +91,7 @@ export function LogEditDialog({ log, open, onOpenChange, onSaved }: Props) {
       date,
       time,
       temp: noTemp ? null : temp,
+      tempUnit: temperatureUnit,
       drug: isCustomMed ? null : dose?.drug ?? null,
       customDrug: isCustomMed ? customDrug.trim() || null : null,
       amount: isCustomMed
@@ -87,8 +106,7 @@ export function LogEditDialog({ log, open, onOpenChange, onSaved }: Props) {
     onSaved?.();
   };
 
-  const tempColor =
-    temp >= 39 ? "text-destructive" : temp >= 38 ? "text-primary" : "text-foreground";
+  const tempColor = getTempColorClass(noTemp ? null : temp, temperatureUnit);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -116,7 +134,7 @@ export function LogEditDialog({ log, open, onOpenChange, onSaved }: Props) {
         )}
 
         {isCustomMed ? (
-          <div className="space-y-3 rounded-2xl border border-border/60 bg-card px-3 py-3">
+          <div className="space-y-3 surface-card rounded-2xl p-4">
             <div>
               <label className="text-xs font-medium text-muted-foreground">Medicine name</label>
               <Input
@@ -138,9 +156,14 @@ export function LogEditDialog({ log, open, onOpenChange, onSaved }: Props) {
                     }}
                     className={`rounded-xl py-2 text-xs font-bold transition border ${
                       customMl === ml && !customMlInput.trim()
-                        ? "bg-primary text-primary-foreground border-transparent"
-                        : "bg-muted text-foreground border-border hover:bg-accent"
+                        ? "border-transparent text-[var(--segment-active-fg)]"
+                        : "bg-[var(--warm-gray)] text-foreground border-border hover:bg-accent"
                     }`}
+                    style={
+                      customMl === ml && !customMlInput.trim()
+                        ? { background: "var(--segment-active)" }
+                        : undefined
+                    }
                   >
                     {ml}
                   </button>
@@ -180,66 +203,61 @@ export function LogEditDialog({ log, open, onOpenChange, onSaved }: Props) {
           </div>
         )}
 
-        <div className="rounded-3xl bg-card px-3 py-3 border border-border/60">
+        <div className="surface-card-lg p-5 space-y-4">
           <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
               <Thermometer className="h-3.5 w-3.5" />
               Temperature
             </div>
             {noTemp ? (
-              <button
-                type="button"
-                onClick={() => setNoTemp(false)}
-                className="text-lg font-semibold text-muted-foreground underline-offset-2 hover:underline"
-              >
+              <span className="text-lg font-semibold text-muted-foreground">
                 Not Taken
-              </button>
+              </span>
             ) : (
-              <div className={`text-2xl font-bold tabular-nums leading-none ${tempColor}`}>
+              <div className={`text-2xl font-semibold tabular-nums leading-none ${tempColor}`}>
                 {temp.toFixed(1)}
-                <span className="text-sm font-normal text-muted-foreground ml-0.5">°C</span>
+                <span className="text-sm font-normal text-muted-foreground ml-0.5">
+                  {getTempUnitSymbol(temperatureUnit)}
+                </span>
               </div>
             )}
           </div>
-          <div className={noTemp ? "opacity-40" : ""}>
+          <div>
             <Slider
+              variant="temperature"
               value={[temp]}
-              min={37}
-              max={42}
-              step={0.1}
+              min={sliderConfig.min}
+              max={sliderConfig.max}
+              step={sliderConfig.step}
               onValueChange={(v) => {
                 setNoTemp(false);
                 setTemp(v[0]);
               }}
-              disabled={noTemp}
-              className="mt-2.5"
             />
-            <TemperatureScale />
+            <TemperatureScale unit={temperatureUnit} />
           </div>
           <button
             type="button"
             onClick={() => setNoTemp((v) => !v)}
-            className={`mt-2.5 w-full rounded-xl py-1.5 text-xs font-medium transition border ${
-              noTemp
-                ? "bg-primary text-primary-foreground border-transparent"
-                : "bg-muted text-foreground border-border hover:bg-accent"
+            className={`w-full rounded-xl py-2 text-xs font-semibold transition border ${
+              noTemp ? "btn-mint" : "btn-mint opacity-80 hover:opacity-100"
             }`}
           >
-            {noTemp ? "Record temperature" : "No Temp"}
+            No Temp
           </button>
 
-          <div className="mt-3">
+          <div>
             <label className="text-xs font-medium text-muted-foreground">Notes (optional)</label>
             <textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               rows={2}
               placeholder="Symptoms, sleep, appetite…"
-              className="mt-1.5 w-full resize-none rounded-xl border border-border bg-muted/50 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/30"
+              className="mt-1.5 w-full resize-none rounded-xl border border-border bg-muted px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-primary/20"
             />
           </div>
 
-          <div className="mt-3 flex items-center gap-2.5 rounded-2xl bg-muted/50 px-3 py-2">
+          <div className="flex items-center gap-2.5 rounded-xl bg-muted px-3 py-2.5">
             <Calendar className="h-4 w-4 text-muted-foreground shrink-0" />
             <input
               type="date"
@@ -256,19 +274,18 @@ export function LogEditDialog({ log, open, onOpenChange, onSaved }: Props) {
           </div>
         </div>
 
-        <DialogFooter className="gap-2">
-          <button
-            onClick={() => onOpenChange(false)}
-            className="rounded-xl border border-border px-4 py-2 text-sm font-medium hover:bg-accent"
-          >
-            Cancel
-          </button>
+        <DialogFooter className={dialogFooterClass}>
           <button
             onClick={handleSave}
-            className="rounded-xl px-4 py-2 text-sm font-semibold text-primary-foreground"
-            style={{ background: "var(--gradient-primary)" }}
+            className={`${dialogPrimaryButtonClass} btn-navy`}
           >
             Save Changes
+          </button>
+          <button
+            onClick={() => onOpenChange(false)}
+            className={dialogSecondaryButtonClass}
+          >
+            Cancel
           </button>
         </DialogFooter>
       </DialogContent>

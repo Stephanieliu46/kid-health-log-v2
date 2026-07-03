@@ -9,6 +9,12 @@ export type PendingIdleReminder = {
   stage: IdleReminderStage;
 };
 
+/** Episode created long after its nominal start date — historical backfill, not ongoing illness. */
+export function isHistoricalBackfillEpisode(episode: Episode): boolean {
+  const createdAt = episode.createdAt ?? episode.openedAt;
+  return createdAt - episode.openedAt > IDLE_REMINDER_MS;
+}
+
 function hoursSinceLastActivity(episode: Episode): number {
   const lastActivity = getLastActivityForEpisode(episode.id) ?? episode.openedAt;
   return (Date.now() - lastActivity) / 3_600_000;
@@ -23,6 +29,7 @@ export function findPendingIdleReminder(episodes: Episode[]): PendingIdleReminde
 
   for (const episode of openEpisodes) {
     if (episode.reminder_exhausted) continue;
+    if (isHistoricalBackfillEpisode(episode)) continue;
 
     const idleMs = hoursSinceLastActivity(episode) * 3_600_000;
     if (idleMs < IDLE_REMINDER_MS) continue;

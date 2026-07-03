@@ -21,6 +21,13 @@ import { evaluateCreateEpisode } from "@/lib/entitlements";
 import { openPaywall } from "@/lib/pro-store";
 import { useChildren } from "@/lib/children-store";
 import { DiseaseTypeMultiSelect } from "@/components/DiseaseTypeMultiSelect";
+import {
+  dialogDateFieldClass,
+  dialogDateWrapClass,
+  dialogFooterClass,
+  dialogPrimaryButtonClass,
+  dialogSecondaryButtonClass,
+} from "@/lib/dialog-ui";
 import { toast } from "sonner";
 
 type Props = {
@@ -56,7 +63,7 @@ export function NewEpisodeDialog({ open, onOpenChange, defaultChild }: Props) {
 
     const gate = evaluateCreateEpisode();
     if (!gate.allowed) {
-      openPaywall();
+      openPaywall("new_episode");
       return;
     }
 
@@ -87,9 +94,9 @@ export function NewEpisodeDialog({ open, onOpenChange, defaultChild }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-sm max-h-[90vh] overflow-y-auto overflow-x-hidden">
         <DialogHeader>
-          <DialogTitle>New Episode</DialogTitle>
+          <DialogTitle className="text-center">New Episode</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4">
@@ -101,10 +108,16 @@ export function NewEpisodeDialog({ open, onOpenChange, defaultChild }: Props) {
                   key={c}
                   onClick={() => setChild(c)}
                   className={`rounded-full px-3 py-1 text-xs font-medium transition ${
-                    child === c
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted hover:bg-accent"
+                    child === c ? "shadow-sm" : "bg-muted hover:bg-accent"
                   }`}
+                  style={
+                    child === c
+                      ? {
+                          background: "var(--child-accent)",
+                          color: "var(--child-accent-foreground)",
+                        }
+                      : undefined
+                  }
                 >
                   {c}
                 </button>
@@ -114,12 +127,14 @@ export function NewEpisodeDialog({ open, onOpenChange, defaultChild }: Props) {
 
           <div>
             <label className="text-xs font-medium text-muted-foreground">Start Date</label>
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              className="mt-1 w-full rounded-xl border border-border bg-muted/50 px-3 py-2 text-sm outline-none"
-            />
+            <div className={dialogDateWrapClass}>
+              <input
+                type="date"
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+                className={dialogDateFieldClass}
+              />
+            </div>
           </div>
 
           <div>
@@ -146,19 +161,19 @@ export function NewEpisodeDialog({ open, onOpenChange, defaultChild }: Props) {
           </div>
         </div>
 
-        <DialogFooter>
-          <button
-            onClick={() => onOpenChange(false)}
-            className="rounded-xl border border-border px-4 py-2 text-sm font-medium hover:bg-accent"
-          >
-            Cancel
-          </button>
+        <DialogFooter className={dialogFooterClass}>
           <button
             onClick={handleCreate}
-            className="rounded-xl px-4 py-2 text-sm font-semibold text-primary-foreground"
-            style={{ background: "var(--gradient-primary)" }}
+            className={dialogPrimaryButtonClass}
+            style={{ background: "var(--primary)" }}
           >
             Create Episode
+          </button>
+          <button
+            onClick={() => onOpenChange(false)}
+            className={dialogSecondaryButtonClass}
+          >
+            Cancel
           </button>
         </DialogFooter>
       </DialogContent>

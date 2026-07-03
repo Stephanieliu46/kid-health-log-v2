@@ -100,7 +100,7 @@ export function IllnessHistoryChart({ data, periodMonths, className }: Props) {
         margin={{
           top: 12,
           right: 8,
-          left: 4,
+          left: 12,
           bottom: isLongRange ? 28 : 4,
         }}
         barCategoryGap={isLongRange ? "14%" : "22%"}
@@ -128,13 +128,13 @@ export function IllnessHistoryChart({ data, periodMonths, className }: Props) {
           <Label
             value="Days"
             angle={-90}
-            position="insideLeft"
-            offset={12}
+            position="left"
+            offset={-8}
             style={Y_LABEL_STYLE}
           />
         </YAxis>
         <Tooltip
-          cursor={{ fill: "oklch(0.96 0.015 150)", opacity: 0.5 }}
+          cursor={{ fill: "var(--muted)", opacity: 0.5 }}
           content={<StackedTooltip />}
         />
         {CHART_DISEASE_CATEGORIES.map((cat, index) => (

@@ -9,9 +9,22 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { addLog } from "@/lib/log-store";
-import { DOSE_AMOUNTS_ML } from "@/lib/medications";
-import { guardLogSave } from "@/lib/entitlements";
-import type { Episode } from "@/lib/episode-store";
+import { getTemperatureUnit } from "@/lib/temperature-unit-store";
+import { DOSE_AMOUNTS_ML, DRUG_LABELS, type Drug } from "@/lib/medications";
+import {
+  guardLogSave,
+  openEmergencyPaywall,
+  recordEmergencyLogIfNeeded,
+  shouldPromptEmergencyLog,
+  isEmergencyPassExhausted,
+} from "@/lib/entitlements";
+import { getEpisode, type Episode } from "@/lib/episode-store";
+import { getLastCustomDrugName, setLastCustomDrugName } from "@/lib/last-custom-drug";
+import {
+  dialogFooterClass,
+  dialogPrimaryButtonClass,
+  dialogSecondaryButtonClass,
+} from "@/lib/dialog-ui";
 import { toast } from "sonner";
 
 type Props = {
@@ -33,6 +46,7 @@ function formatTimeInput(d: Date) {
 }
 
 export function LogMedicineDialog({ episode, open, onOpenChange, onSaved }: Props) {
+  const [selectedDrug, setSelectedDrug] = useState<Drug | null>(null);
   const [name, setName] = useState("");
   const [presetMl, setPresetMl] = useState<number | null>(null);
   const [customMl, setCustomMl] = useState("");
@@ -41,29 +55,52 @@ export function LogMedicineDialog({ episode, open, onOpenChange, onSaved }: Prop
   const [notes, setNotes] = useState("");
 
   useEffect(() => {
-    if (!open) return;
+    if (!open || !episode) return;
     const now = new Date();
-    setName("");
+    setSelectedDrug(null);
+    setName(getLastCustomDrugName(episode.child));
     setPresetMl(null);
     setCustomMl("");
     setDate(formatDateInput(now));
     setTime(formatTimeInput(now));
     setNotes("");
-  }, [open]);
+  }, [open, episode]);
 
   const resolvedMl = customMl.trim()
     ? Number.parseFloat(customMl)
     : presetMl;
 
+  const medicineLabel = selectedDrug ? DRUG_LABELS[selectedDrug] : name.trim();
+
   const canSave =
-    name.trim().length > 0 &&
+    (selectedDrug !== null || name.trim().length > 0) &&
     resolvedMl !== null &&
     !Number.isNaN(resolvedMl) &&
     resolvedMl > 0;
 
-  const handleSave = () => {
+  const handleSave = (options?: { forceEmergencyPass?: boolean }) => {
     if (!episode || !canSave) return;
-    if (!guardLogSave(episode)) return;
+
+    const current = getEpisode(episode.id) ?? episode;
+
+    if (!options?.forceEmergencyPass) {
+      if (current.isEmergencyPass && isEmergencyPassExhausted(current)) {
+        openEmergencyPaywall(current);
+        return;
+      }
+      if (shouldPromptEmergencyLog(current)) {
+        openEmergencyPaywall(current, {
+          onEmergencyLog: () => handleSave({ forceEmergencyPass: true }),
+        });
+        return;
+      }
+    }
+
+    if (!guardLogSave(current)) return;
+
+    if (!selectedDrug) {
+      setLastCustomDrugName(episode.child, name.trim());
+    }
 
     addLog({
       child: episode.child,
@@ -71,14 +108,17 @@ export function LogMedicineDialog({ episode, open, onOpenChange, onSaved }: Prop
       date,
       time,
       temp: null,
-      drug: null,
-      customDrug: name.trim(),
+      tempUnit: getTemperatureUnit(),
+      drug: selectedDrug,
+      customDrug: selectedDrug ? null : name.trim(),
       amount: resolvedMl,
       notes: notes.trim() || null,
     });
 
+    recordEmergencyLogIfNeeded(episode.id, null, selectedDrug, selectedDrug ? null : name.trim());
+
     toast.success("Medicine logged", {
-      description: `${name.trim()} · ${resolvedMl}ml`,
+      description: `${medicineLabel} · ${resolvedMl}ml`,
     });
     onOpenChange(false);
     onSaved?.();
@@ -96,12 +136,50 @@ export function LogMedicineDialog({ episode, open, onOpenChange, onSaved }: Prop
         <div className="space-y-4">
           <div>
             <label className="text-sm font-semibold text-muted-foreground">Medicine name</label>
+            <div className="mt-1.5 grid grid-cols-2 gap-2">
+              {(["paracetamol", "ibuprofen"] as const).map((drug) => {
+                const active = selectedDrug === drug;
+                const isPara = drug === "paracetamol";
+                return (
+                  <button
+                    key={drug}
+                    type="button"
+                    onClick={() => {
+                      setSelectedDrug(active ? null : drug);
+                      if (!active) setName("");
+                    }}
+                    className={`rounded-xl py-2.5 text-sm font-bold transition border ${
+                      active
+                        ? "border-transparent shadow-sm"
+                        : "bg-card text-foreground border-border hover:bg-muted"
+                    }`}
+                    style={
+                      active
+                        ? isPara
+                          ? {
+                              background: "var(--child-accent)",
+                              color: "var(--child-accent-foreground)",
+                            }
+                          : {
+                              background: "var(--peach)",
+                              color: "var(--charcoal)",
+                            }
+                        : undefined
+                    }
+                  >
+                    {DRUG_LABELS[drug]}
+                  </button>
+                );
+              })}
+            </div>
             <Input
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                setName(e.target.value);
+                if (e.target.value.trim()) setSelectedDrug(null);
+              }}
               placeholder="e.g. Amoxicillin, Antibiotic syrup"
-              className="mt-1.5 rounded-xl text-base"
-              autoFocus
+              className="mt-2 rounded-xl text-base"
             />
           </div>
 
@@ -121,9 +199,14 @@ export function LogMedicineDialog({ episode, open, onOpenChange, onSaved }: Prop
                   }}
                   className={`rounded-xl py-2.5 text-sm font-bold transition border ${
                     presetMl === ml && !customMl.trim()
-                      ? "bg-primary text-primary-foreground border-transparent"
-                      : "bg-muted text-foreground border-border hover:bg-accent"
+                      ? "border-transparent text-[var(--segment-active-fg)]"
+                      : "bg-[var(--warm-gray)] text-foreground border-border hover:bg-accent"
                   }`}
+                  style={
+                    presetMl === ml && !customMl.trim()
+                      ? { background: "var(--segment-active)" }
+                      : undefined
+                  }
                 >
                   {ml}
                 </button>
@@ -175,20 +258,19 @@ export function LogMedicineDialog({ episode, open, onOpenChange, onSaved }: Prop
           </div>
         </div>
 
-        <DialogFooter className="gap-2">
+        <DialogFooter className={dialogFooterClass}>
           <button
-            onClick={() => onOpenChange(false)}
-            className="rounded-xl border border-border px-4 py-2.5 text-base font-medium hover:bg-accent"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleSave}
+            onClick={() => handleSave()}
             disabled={!canSave}
-            className="rounded-xl px-4 py-2.5 text-base font-bold text-primary-foreground disabled:opacity-50"
-            style={{ background: "var(--gradient-primary)" }}
+            className={`${dialogPrimaryButtonClass} btn-navy`}
           >
             Save
+          </button>
+          <button
+            onClick={() => onOpenChange(false)}
+            className={dialogSecondaryButtonClass}
+          >
+            Cancel
           </button>
         </DialogFooter>
       </DialogContent>

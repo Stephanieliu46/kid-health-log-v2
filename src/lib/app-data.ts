@@ -11,6 +11,7 @@ export const APP_STORAGE_KEYS = [
   "kidhealth.rememberMe.v1",
   "kidhealth.pro.v1",
   "kidhealth.profile.v1",
+  "kidhealth.disclaimer.v1",
 ] as const;
 
 export function clearAllAppData() {

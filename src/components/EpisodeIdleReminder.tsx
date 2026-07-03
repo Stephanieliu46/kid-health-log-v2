@@ -50,10 +50,7 @@ export function EpisodeIdleReminder() {
             <AlertDialogDescription>{copy?.description}</AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter className="flex-col gap-2 sm:flex-col">
-            <AlertDialogAction
-              onClick={handleCloseRequest}
-              className="w-full"
-            >
+            <AlertDialogAction onClick={handleCloseRequest} className="w-full">
               Close Episode
             </AlertDialogAction>
             <AlertDialogCancel onClick={handleKeepOpen} className="w-full">

@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { Plus, ChevronRight } from "lucide-react";
-import { useLogs, getLogsForEpisode, type LogEntry } from "@/lib/log-store";
+import { useLogs, getLogsForEpisode, sortLogsDesc, type LogEntry } from "@/lib/log-store";
 import { useEpisodes, getSickDays, formatEpisodeTitle, type Episode } from "@/lib/episode-store";
 import { BottomNav } from "@/components/BottomNav";
 import { AppShell, TabPage } from "@/components/AppShell";
@@ -10,6 +10,7 @@ import { LogCard } from "@/components/LogCard";
 import { NewEpisodeDialog } from "@/components/NewEpisodeDialog";
 import { getLastChild, setLastChild } from "@/lib/last-child";
 import { ChildTabs } from "@/components/ChildTabs";
+import { ChildNameBadge } from "@/components/ChildNameBadge";
 
 const PREVIEW_LOG_LIMIT = 3;
 
@@ -22,13 +23,6 @@ export const Route = createFileRoute("/timeline")({
   }),
   component: EpisodesPage,
 });
-
-function sortLogsDesc(logs: LogEntry[]) {
-  return [...logs].sort((a, b) => {
-    if (a.date !== b.date) return a.date < b.date ? 1 : -1;
-    return a.time < b.time ? 1 : -1;
-  });
-}
 
 function EpisodeBlock({
   episode,
@@ -51,41 +45,41 @@ function EpisodeBlock({
 
   return (
     <div
-      className={`rounded-xl border overflow-hidden shrink-0 ${
-        isOpen ? "border-primary/30 bg-primary/5" : "border-border/60 bg-card"
-      }`}
+      className="rounded-xl border border-border bg-card overflow-hidden shrink-0 shadow-[var(--shadow-warm)]"
+      style={{
+        borderLeftWidth: 3,
+        borderLeftColor: isOpen ? "var(--episode-open)" : "var(--episode-closed)",
+        background: isOpen ? "var(--episode-open-muted)" : "var(--episode-closed-muted)",
+      }}
     >
       <Link
         to="/episode/$episodeId"
         params={{ episodeId: episode.id }}
-        className="flex items-center justify-between px-3 py-2 transition hover:bg-primary/5"
+        className="flex items-center justify-between px-2.5 py-2 transition hover:bg-muted/60"
       >
-        <div className="min-w-0">
-          <div className="flex items-center gap-1.5 min-w-0">
-            <div
-              className={`text-base font-bold truncate ${isOpen ? "text-primary" : "text-foreground"}`}
-            >
-              {formatEpisodeTitle(episode)}
-            </div>
+        <div className="min-w-0 text-foreground">
+          <div className="flex items-center gap-1 min-w-0">
+            <div className="text-sm font-bold truncate leading-tight">{formatEpisodeTitle(episode)}</div>
             {episode.isEmergencyPass && isOpen && (
-              <span className="shrink-0 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-800">
+              <span className="shrink-0 rounded-full bg-card border border-border px-1.5 py-px text-[9px] font-bold uppercase tracking-wide text-muted-foreground">
                 Emergency
               </span>
             )}
           </div>
-          <div className="text-sm font-medium text-muted-foreground truncate">
-            {episode.child} · {episodeLogs.length} {episodeLogs.length === 1 ? "log" : "logs"} ·{" "}
-            {sickDays}d · {startedLabel}
-            {moreCount > 0 && isOpen ? ` · +${moreCount} more inside` : ""}
+          <div className="mt-0.5 flex flex-wrap items-center gap-1 text-xs font-medium text-muted-foreground truncate leading-tight">
+            <ChildNameBadge name={episode.child} compact />
+            <span>
+              · {episodeLogs.length} {episodeLogs.length === 1 ? "log" : "logs"} · {sickDays}d ·{" "}
+              {startedLabel}
+              {moreCount > 0 && isOpen ? ` · +${moreCount} more` : ""}
+            </span>
           </div>
         </div>
-        <ChevronRight
-          className={`h-3.5 w-3.5 shrink-0 ml-1 ${isOpen ? "text-primary" : "text-muted-foreground"}`}
-        />
+        <ChevronRight className="h-3 w-3 shrink-0 ml-0.5 text-muted-foreground" />
       </Link>
 
       {isOpen && previewLogs.length > 0 && (
-        <div className="px-2 pb-2 space-y-1 border-t border-primary/10">
+        <div className="px-1.5 pb-1.5 space-y-0.5 border-t border-border bg-card/80">
           {previewLogs.map((log) => (
             <LogCard key={log.id} log={log} onEdit={() => onEditLog(log)} mini />
           ))}
@@ -121,14 +115,14 @@ function EpisodesPage() {
     <AppShell>
       <TabPage>
         <header className="shrink-0">
-          <h1 className="text-2xl font-bold tracking-tight">Episodes</h1>
-          <p className="text-base text-muted-foreground font-medium">
+          <h1 className="text-xl font-bold tracking-tight">Episodes</h1>
+          <p className="text-sm text-muted-foreground font-medium">
             {childLogs.length === 0
               ? `No entries for ${selectedChild}.`
               : `${childLogs.length} ${childLogs.length === 1 ? "entry" : "entries"} for ${selectedChild}`}
           </p>
-          <div className="mt-2">
-            <ChildTabs selected={selectedChild} onSelect={handleSelectChild} size="large" />
+          <div className="mt-1.5">
+            <ChildTabs selected={selectedChild} onSelect={handleSelectChild} />
           </div>
         </header>
 
@@ -139,8 +133,7 @@ function EpisodesPage() {
             </p>
             <Link
               to="/"
-              className="mt-3 rounded-xl px-4 py-2 text-sm font-semibold text-primary-foreground"
-              style={{ background: "var(--gradient-primary)" }}
+              className="mt-3 rounded-lg px-3 py-1.5 text-xs font-semibold btn-navy"
             >
               Go to Quick Log
             </Link>
@@ -152,21 +145,20 @@ function EpisodesPage() {
             </p>
             <button
               onClick={() => setNewEpisodeOpen(true)}
-              className="mt-3 rounded-xl px-4 py-2 text-sm font-semibold text-primary-foreground"
-              style={{ background: "var(--gradient-primary)" }}
+              className="mt-3 rounded-lg px-3 py-1.5 text-xs font-semibold btn-navy"
             >
               New Episode
             </button>
           </div>
         ) : (
-          <div className="flex-1 flex flex-col min-h-0 gap-3 mt-2 overflow-hidden">
-            <section className="flex flex-col min-h-0 gap-1.5 overflow-hidden">
-              <div className="text-sm font-bold uppercase tracking-wider text-muted-foreground shrink-0">
+          <div className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain touch-pan-y [-webkit-overflow-scrolling:touch] mt-1.5 pb-2">
+            <section className="flex flex-col gap-1">
+              <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground shrink-0">
                 Open Episodes
               </div>
-              <div className="flex flex-col gap-1.5 min-h-0 overflow-hidden">
+              <div className="flex flex-col gap-1">
                 {openEpisodes.length === 0 ? (
-                  <p className="text-base text-muted-foreground">No open episodes.</p>
+                  <p className="text-sm text-muted-foreground">No open episodes.</p>
                 ) : (
                   openEpisodes.map((episode) => (
                     <EpisodeBlock
@@ -179,17 +171,17 @@ function EpisodesPage() {
                 )}
                 <button
                   onClick={() => setNewEpisodeOpen(true)}
-                  className="shrink-0 w-full rounded-xl border border-dashed border-primary/40 py-3 text-base font-bold text-primary transition hover:bg-primary/5 inline-flex items-center justify-center gap-1.5"
+                  className="shrink-0 w-full rounded-lg border border-dashed border-border py-1.5 text-xs font-semibold text-foreground bg-card transition hover:bg-muted inline-flex items-center justify-center gap-1"
                 >
-                  <Plus className="h-3.5 w-3.5" />
+                  <Plus className="h-3 w-3" />
                   New Episode
                 </button>
               </div>
             </section>
 
             {closedEpisodes.length > 0 && (
-              <section className="flex flex-col gap-1.5 shrink-0">
-                <div className="text-sm font-bold uppercase tracking-wider text-muted-foreground">
+              <section className="flex flex-col gap-1 mt-2">
+                <div className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                   Closed Episodes
                 </div>
                 {closedEpisodes.map((episode) => (

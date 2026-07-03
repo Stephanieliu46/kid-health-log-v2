@@ -23,14 +23,23 @@ import {
   episodeIncludesStandardType,
 } from "../lib/disease-types";
 import { hydrateAuthStore, isAuthenticated } from "../lib/auth-store";
-import { hydrateProfileStore } from "../lib/profile-store";
 import { hydrateProStore } from "../lib/pro-store";
 import { checkPaywallOnAppOpen } from "../lib/entitlements";
 import { hydrateChildrenStore, getChildNames } from "../lib/children-store";
-import { Toaster } from "@/components/ui/sonner";
+import { AppToaster } from "@/components/ui/sonner";
 import { PaywallModal } from "@/components/PaywallModal";
 import { EpisodeIdleReminder } from "@/components/EpisodeIdleReminder";
 import { PurchaseOverlay } from "@/components/PurchaseOverlay";
+import {
+  acceptDisclaimer,
+  hasAcceptedDisclaimer,
+  hydrateDisclaimerStore,
+} from "@/lib/medical-disclaimer";
+import { hydrateTemperatureUnitStore } from "@/lib/temperature-unit-store";
+import { hydrateThemeStore } from "@/lib/theme-store";
+import { MedicalDisclaimerAcceptDialog } from "@/components/MedicalDisclaimerDialog";
+
+const THEME_BOOTSTRAP = `(function(){try{var t=JSON.parse(localStorage.getItem("kidhealth.theme.v1")||'"system"');var d=t==="dark"||(t==="system"&&window.matchMedia("(prefers-color-scheme: dark)").matches);if(d)document.documentElement.classList.add("dark")}catch(e){}})();`;
 
 function NotFoundComponent() {
   return (
@@ -125,9 +134,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
+        <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP }} />
       </head>
       <body>
         {children}
@@ -142,14 +152,17 @@ function RootComponent() {
   const navigate = useNavigate();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const [ready, setReady] = useState(false);
+  const [disclaimerAccepted, setDisclaimerAccepted] = useState(true);
 
   useEffect(() => {
     hydrateAuthStore();
-    hydrateProfileStore();
     hydrateProStore();
     hydrateChildrenStore();
     hydrateLogStore();
     hydrateEpisodeStore();
+    hydrateDisclaimerStore();
+    hydrateTemperatureUnitStore();
+    hydrateThemeStore();
 
     for (const child of getChildNames()) {
       const coldFever = getOpenEpisodesForChild(child).find((e) =>
@@ -159,6 +172,7 @@ function RootComponent() {
     }
 
     checkPaywallOnAppOpen();
+    setDisclaimerAccepted(hasAcceptedDisclaimer());
     setReady(true);
   }, []);
 
@@ -185,7 +199,14 @@ function RootComponent() {
       <EpisodeIdleReminder />
       <PaywallModal />
       <PurchaseOverlay />
-      <Toaster position="bottom-center" richColors closeButton offset={{ bottom: 88 }} />
+      <MedicalDisclaimerAcceptDialog
+        open={!disclaimerAccepted}
+        onAccept={() => {
+          acceptDisclaimer();
+          setDisclaimerAccepted(true);
+        }}
+      />
+      <AppToaster position="bottom-center" closeButton offset={{ bottom: 88 }} />
     </QueryClientProvider>
   );
 }

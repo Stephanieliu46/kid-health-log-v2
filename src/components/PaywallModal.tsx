@@ -14,16 +14,52 @@ import {
   setPaywallOpen,
   useIsPro,
   usePurchasing,
+  usePaywallReason,
+  usePaywallEmergencyLogsRemaining,
+  consumeEmergencyLogAction,
+  type PaywallReason,
 } from "@/lib/pro-store";
+import { EMERGENCY_LOG_LIMIT } from "@/lib/entitlements";
 import { toast } from "sonner";
+
+const PAYWALL_COPY: Record<PaywallReason, string> = {
+  add_child:
+    "The free version includes 1 child profile. Upgrade to KidHealth Pro for £2.99 once to add up to 5 children and switch between them in Quick Log and Dashboard.",
+  new_episode:
+    "The free version covers 1 full illness episode. Upgrade to Pro for £2.99 once to unlock unlimited episodes and keep permanent illness history.",
+  emergency_pass:
+    "Your free plan includes one full illness history. Upgrade to Pro for £2.99 once to permanently save every episode, or use Emergency Log entries for a new illness.",
+  generic:
+    "Upgrade to KidHealth Pro for £2.99 once to unlock unlimited episodes, up to 5 child profiles, and multi-child quick switch.",
+};
 
 export function PaywallModal() {
   const open = usePaywallOpen();
+  const reason = usePaywallReason();
+  const emergencyLogsRemaining = usePaywallEmergencyLogsRemaining();
   const isPro = useIsPro();
   const purchasing = usePurchasing();
   const [success, setSuccess] = useState(false);
 
   if (isPro) return null;
+
+  const showEmergencyAction =
+    reason === "emergency_pass" &&
+    emergencyLogsRemaining !== null &&
+    emergencyLogsRemaining > 0;
+
+  const isEmergencyExhausted =
+    reason === "emergency_pass" &&
+    emergencyLogsRemaining !== null &&
+    emergencyLogsRemaining === 0;
+
+  const emergencyDescription = showEmergencyAction
+    ? emergencyLogsRemaining === EMERGENCY_LOG_LIMIT
+      ? "Your first illness episode is closed. You can log this new illness up to 5 times with Emergency Pass while data stays in temporary storage."
+      : `Emergency Pass active. You have ${emergencyLogsRemaining} of ${EMERGENCY_LOG_LIMIT} emergency logs remaining.`
+    : isEmergencyExhausted
+      ? "You've used all 5 Emergency Pass logs. Upgrade to Pro to keep logging this illness permanently."
+      : PAYWALL_COPY[reason];
 
   const handlePurchase = async () => {
     try {
@@ -41,6 +77,11 @@ export function PaywallModal() {
     }
   };
 
+  const handleEmergencyLog = () => {
+    const action = consumeEmergencyLogAction();
+    action?.();
+  };
+
   return (
     <Dialog
       open={open}
@@ -48,9 +89,12 @@ export function PaywallModal() {
         if (!purchasing) setPaywallOpen(next);
       }}
     >
-      <DialogContent className="max-w-sm border-amber-200/60">
+      <DialogContent className="max-w-sm border-primary/30">
         <DialogHeader>
-          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
+          <div
+            className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl text-primary-foreground"
+            style={{ background: "var(--gradient-pro)" }}
+          >
             <Lock className="h-6 w-6" />
           </div>
           <DialogTitle className="text-center">
@@ -58,10 +102,7 @@ export function PaywallModal() {
           </DialogTitle>
           {!success && (
             <DialogDescription className="text-center text-sm leading-relaxed">
-              Thank you for utilizing the Emergency Pass! 🔒 Your last 5 logs are securely saved
-              in temporary storage. As the free version covers 1 full illness history, upgrade to
-              Pro for £2.99 once to unlock unlimited episodes, permanently save this current
-              illness, and manage up to 5 child profiles.
+              {emergencyDescription}
             </DialogDescription>
           )}
         </DialogHeader>
@@ -72,7 +113,7 @@ export function PaywallModal() {
               onClick={handlePurchase}
               disabled={purchasing}
               className="w-full rounded-xl py-3 text-sm font-semibold text-primary-foreground disabled:opacity-70 inline-flex items-center justify-center gap-2"
-              style={{ background: "linear-gradient(135deg, #D4AF37 0%, #B8860B 100%)" }}
+              style={{ background: "var(--gradient-pro)" }}
             >
               {purchasing ? (
                 <>
@@ -83,13 +124,24 @@ export function PaywallModal() {
                 <>💳 Upgrade for £2.99</>
               )}
             </button>
-            <button
-              onClick={() => setPaywallOpen(false)}
-              disabled={purchasing}
-              className="w-full rounded-xl border border-border py-2.5 text-xs font-medium text-muted-foreground hover:bg-accent disabled:opacity-50"
-            >
-              Not now
-            </button>
+            {showEmergencyAction ? (
+              <button
+                type="button"
+                onClick={handleEmergencyLog}
+                disabled={purchasing}
+                className="w-full rounded-xl border border-[color-mix(in_srgb,var(--episode-open)_55%,var(--border))] bg-[color-mix(in_srgb,var(--episode-open-muted)_70%,var(--surface))] py-2.5 text-sm font-semibold text-foreground hover:brightness-[0.98] disabled:opacity-50"
+              >
+                Emergency Log · {emergencyLogsRemaining} of {EMERGENCY_LOG_LIMIT} left
+              </button>
+            ) : reason !== "emergency_pass" ? (
+              <button
+                onClick={() => setPaywallOpen(false)}
+                disabled={purchasing}
+                className="w-full rounded-xl border border-border py-2.5 text-xs font-medium text-muted-foreground hover:bg-accent disabled:opacity-50"
+              >
+                Not now
+              </button>
+            ) : null}
           </DialogFooter>
         )}
       </DialogContent>

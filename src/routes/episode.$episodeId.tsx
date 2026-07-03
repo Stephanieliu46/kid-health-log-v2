@@ -9,6 +9,7 @@ import {
   Pencil,
   ChevronDown,
   Pill,
+  RotateCcw,
 } from "lucide-react";
 import {
   useEpisodes,
@@ -17,16 +18,19 @@ import {
   updateEpisode,
   getSickDays,
   formatEpisodeTitle,
+  reopenEpisode,
 } from "@/lib/episode-store";
 import {
   useLogs,
   deleteLog,
   deleteLogsForEpisode,
   updateLogsChildForEpisode,
+  sortLogsDesc,
   type LogEntry,
 } from "@/lib/log-store";
 import { useChildren } from "@/lib/children-store";
 import { BottomNav } from "@/components/BottomNav";
+import { ChildNameBadge } from "@/components/ChildNameBadge";
 import { LogEditDialog } from "@/components/LogEditDialog";
 import { LogMedicineDialog } from "@/components/LogMedicineDialog";
 import { CloseEpisodeDialog } from "@/components/CloseEpisodeDialog";
@@ -57,6 +61,15 @@ import {
   type DiseaseType,
 } from "@/lib/disease-types";
 import { getLogMedicationDisplay } from "@/lib/medications";
+import { formatLogTemp, toCelsius } from "@/lib/temperature";
+import {
+  dialogDateFieldClass,
+  dialogDateWrapClass,
+  dialogFooterClass,
+  dialogPrimaryButtonClass,
+  dialogSecondaryButtonClass,
+} from "@/lib/dialog-ui";
+import { useTemperatureUnit } from "@/lib/temperature-unit-store";
 
 export const Route = createFileRoute("/episode/$episodeId")({
   head: () => ({
@@ -79,13 +92,9 @@ function EpisodePage() {
   const children = useChildren();
   const episodes = useEpisodes();
   const logs = useLogs();
+  const temperatureUnit = useTemperatureUnit();
   const episode = episodes.find((e) => e.id === episodeId) ?? getEpisode(episodeId);
-  const episodeLogs = logs
-    .filter((l) => l.episodeId === episodeId)
-    .sort((a, b) => {
-      if (a.date !== b.date) return a.date < b.date ? -1 : 1;
-      return a.time < b.time ? -1 : 1;
-    });
+  const episodeLogs = sortLogsDesc(logs.filter((l) => l.episodeId === episodeId));
 
   const [editingLog, setEditingLog] = useState<LogEntry | null>(null);
   const [editEpisodeOpen, setEditEpisodeOpen] = useState(false);
@@ -102,15 +111,15 @@ function EpisodePage() {
 
   if (!episode) {
     return (
-      <main className="min-h-screen bg-background flex justify-center pb-20">
-        <div className="w-full max-w-md px-5 pt-6 text-center">
+      <div className="h-[100dvh] w-full flex justify-center bg-background overflow-hidden">
+        <main className="w-full max-w-md px-5 pt-6 text-center">
           <p className="text-muted-foreground">Episode not found.</p>
           <Link to="/timeline" className="mt-4 inline-block text-sm font-medium text-primary">
             Back to Episodes
           </Link>
-        </div>
+        </main>
         <BottomNav />
-      </main>
+      </div>
     );
   }
 
@@ -178,6 +187,17 @@ function EpisodePage() {
     setCloseDialogOpen(true);
   };
 
+  const handleReopen = () => {
+    try {
+      reopenEpisode(episode.id);
+      toast.success("Episode re-opened", {
+        description: `${episodeTitle} for ${episode.child} is open again.`,
+      });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Could not re-open episode");
+    }
+  };
+
   const handleDeleteLog = () => {
     if (!deleteLogTarget) return;
     deleteLog(deleteLogTarget.id);
@@ -186,63 +206,83 @@ function EpisodePage() {
   };
 
   return (
-    <main className="min-h-screen bg-background flex justify-center pb-28">
-      <div className="w-full max-w-md px-5 pt-6 pb-8">
-        <Link
-          to="/timeline"
-          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Episodes
-        </Link>
+    <div className="h-[100dvh] w-full flex justify-center bg-background overflow-hidden">
+      <main className="w-full max-w-md h-full flex flex-col min-h-0 overflow-hidden pb-28">
+        <div className="shrink-0 px-5 pt-6">
+          <Link
+            to="/timeline"
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Episodes
+          </Link>
 
-        <header className="mt-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-semibold tracking-tight">{episodeTitle}</h1>
-                <button
-                  onClick={openEditEpisode}
-                  className="rounded-lg p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 transition"
-                  aria-label="Edit episode"
-                >
-                  <Pencil className="h-4 w-4" />
-                </button>
+          <header className="mt-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <h1 className="text-xl font-semibold tracking-tight">{episodeTitle}</h1>
+                  <button
+                    onClick={openEditEpisode}
+                    className="rounded-lg p-1.5 text-muted-foreground hover:text-primary hover:bg-primary/10 transition"
+                    aria-label="Edit episode"
+                  >
+                    <Pencil className="h-4 w-4" />
+                  </button>
+                </div>
+                <p className="mt-1 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
+                  <ChildNameBadge name={episode.child} compact />
+                  <span>
+                    · {sickDays} {sickDays === 1 ? "day" : "days"} · Started {startedLabel}
+                  </span>
+                </p>
               </div>
-              <p className="mt-1 text-sm text-muted-foreground">
-                {episode.child} · {sickDays} {sickDays === 1 ? "day" : "days"} · Started{" "}
-                {startedLabel}
-              </p>
+              <span
+                className="shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold"
+                style={
+                  episode.status === "open"
+                    ? {
+                        background: "var(--episode-open-muted)",
+                        color: "var(--episode-open-foreground)",
+                        border: "1px solid var(--episode-open)",
+                      }
+                    : {
+                        background: "var(--episode-closed-muted)",
+                        color: "var(--episode-closed)",
+                        border: "1px solid var(--episode-closed)",
+                      }
+                }
+              >
+                {episode.status === "open" ? "Open" : "Closed"}
+              </span>
             </div>
-            <span
-              className={`shrink-0 rounded-full px-2.5 py-1 text-xs font-semibold ${
-                episode.status === "open"
-                  ? "bg-primary/15 text-primary"
-                  : "bg-muted text-muted-foreground"
-              }`}
-            >
-              {episode.status === "open" ? "Open" : "Closed"}
-            </span>
-          </div>
 
-          {episode.notes && (
-            <p className="mt-3 rounded-xl bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
-              {episode.notes}
-            </p>
-          )}
-        </header>
+            {episode.notes && (
+              <p className="mt-3 rounded-xl bg-muted/50 px-3 py-2 text-sm text-muted-foreground">
+                {episode.notes}
+              </p>
+            )}
+          </header>
+        </div>
 
-        <div className="mt-6 space-y-3">
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain touch-pan-y [-webkit-overflow-scrolling:touch] px-5 pb-8">
+          <div className="mt-4 space-y-1.5">
           {episodeLogs.length === 0 ? (
             <p className="text-sm text-muted-foreground">No logs in this episode yet.</p>
           ) : (
             episodeLogs.map((log) => {
               const med = getLogMedicationDisplay(log);
+              const tempHigh =
+                log.temp !== null && toCelsius(log.temp, log.tempUnit) >= 39;
+              const tempMid =
+                log.temp !== null &&
+                toCelsius(log.temp, log.tempUnit) >= 38 &&
+                toCelsius(log.temp, log.tempUnit) < 39;
 
               return (
                 <div
                   key={log.id}
-                  className="rounded-2xl bg-card border border-border/60 p-4 shadow-[var(--shadow-soft)]"
+                  className="surface-card rounded-xl p-2.5"
                 >
                   <div className="flex items-start justify-between gap-2">
                     <div className="text-xs text-muted-foreground">
@@ -270,11 +310,11 @@ function EpisodePage() {
                       </button>
                     </div>
                   </div>
-                  <div className="mt-2 flex flex-wrap gap-2">
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
                     {med && (
                       <span
-                        className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium text-white"
-                        style={{ background: med.color }}
+                        className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
+                        style={{ background: med.color, color: med.textColor }}
                       >
                         <Droplet className="h-3 w-3" fill="currentColor" fillOpacity={0.3} />
                         {med.label}
@@ -282,14 +322,22 @@ function EpisodePage() {
                       </span>
                     )}
                     {log.temp !== null && (
-                      <span className="inline-flex items-center gap-1.5 rounded-full bg-muted px-2.5 py-1 text-xs font-medium">
+                      <span
+                        className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
+                          tempHigh
+                            ? "bg-[color-mix(in_srgb,var(--fever-high)_16%,var(--card))] text-fever-high"
+                            : tempMid
+                              ? "bg-[color-mix(in_srgb,var(--fever-mid)_12%,var(--card))] text-fever-mid"
+                              : "bg-muted text-foreground"
+                        }`}
+                      >
                         <Thermometer className="h-3 w-3" />
-                        {log.temp.toFixed(1)}°C
+                        {formatLogTemp(log.temp, log.tempUnit, temperatureUnit)}
                       </span>
                     )}
                   </div>
                   {log.notes && (
-                    <p className="mt-2 text-sm text-muted-foreground">{log.notes}</p>
+                    <p className="mt-1.5 text-xs text-muted-foreground leading-snug">{log.notes}</p>
                   )}
                 </div>
               );
@@ -297,34 +345,52 @@ function EpisodePage() {
           )}
         </div>
 
-        <div className="mt-8 space-y-2">
+        <div className="mt-6 space-y-2">
           {episode.status === "open" && (
             <button
               onClick={() => setLogMedicineOpen(true)}
-              className="w-full rounded-2xl border border-primary/40 bg-primary/5 py-3 text-sm font-semibold text-primary transition hover:bg-primary/10 active:scale-[0.98] inline-flex items-center justify-center gap-2"
+              className="w-full rounded-xl border border-border bg-card py-2 text-xs font-semibold text-foreground transition hover:bg-muted active:scale-[0.98] inline-flex items-center justify-center gap-1.5"
+              style={{
+                borderLeftWidth: 3,
+                borderLeftColor: "var(--episode-open)",
+              }}
             >
-              <Pill className="h-4 w-4" />
+              <Pill className="h-3.5 w-3.5" />
               Log Medicine
             </button>
           )}
           {episode.status === "open" && (
             <button
               onClick={handleClose}
-              className="w-full rounded-2xl border border-border bg-card py-3 text-sm font-semibold text-foreground transition hover:bg-accent active:scale-[0.98] inline-flex items-center justify-center gap-2"
+              className="w-full rounded-xl border border-border bg-card py-2 text-xs font-semibold text-foreground transition hover:bg-accent active:scale-[0.98] inline-flex items-center justify-center gap-1.5"
             >
-              <Lock className="h-4 w-4" />
+              <Lock className="h-3.5 w-3.5" />
               Close Episode
+            </button>
+          )}
+          {episode.status === "closed" && (
+            <button
+              onClick={handleReopen}
+              className="w-full rounded-xl border border-border bg-card py-2 text-xs font-semibold text-foreground transition hover:bg-muted active:scale-[0.98] inline-flex items-center justify-center gap-1.5"
+              style={{
+                borderLeftWidth: 3,
+                borderLeftColor: "var(--episode-open)",
+              }}
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Re-open Episode
             </button>
           )}
           <button
             onClick={() => setDeleteConfirmOpen(true)}
-            className="w-full rounded-2xl border border-destructive/40 bg-card py-3 text-sm font-semibold text-destructive transition hover:bg-destructive/10 active:scale-[0.98] inline-flex items-center justify-center gap-2"
+            className="w-full rounded-xl border border-destructive/40 bg-card py-2 text-xs font-semibold text-destructive transition hover:bg-destructive/10 active:scale-[0.98] inline-flex items-center justify-center gap-1.5"
           >
-            <Trash2 className="h-4 w-4" />
+            <Trash2 className="h-3.5 w-3.5" />
             Delete Episode
           </button>
         </div>
-      </div>
+        </div>
+      </main>
 
       <LogEditDialog
         log={editingLog}
@@ -338,6 +404,13 @@ function EpisodePage() {
         episode={episode}
         open={logMedicineOpen}
         onOpenChange={setLogMedicineOpen}
+      />
+
+      <CloseEpisodeDialog
+        episode={episode.status === "open" ? episode : null}
+        open={closeDialogOpen}
+        onOpenChange={setCloseDialogOpen}
+        onClosed={() => navigate({ to: "/timeline" })}
       />
 
       <Dialog open={editEpisodeOpen} onOpenChange={setEditEpisodeOpen}>
@@ -397,12 +470,14 @@ function EpisodePage() {
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground">Start Date</label>
-              <input
-                type="date"
-                value={editStartDate}
-                onChange={(e) => setEditStartDate(e.target.value)}
-                className="mt-1 w-full rounded-xl border border-border bg-muted/50 px-3 py-2 text-sm outline-none"
-              />
+              <div className={dialogDateWrapClass}>
+                <input
+                  type="date"
+                  value={editStartDate}
+                  onChange={(e) => setEditStartDate(e.target.value)}
+                  className={dialogDateFieldClass}
+                />
+              </div>
             </div>
             <div>
               <label className="text-xs font-medium text-muted-foreground">Notes</label>
@@ -415,30 +490,24 @@ function EpisodePage() {
               />
             </div>
           </div>
-          <DialogFooter>
-            <button
-              onClick={() => setEditEpisodeOpen(false)}
-              className="rounded-xl border border-border px-4 py-2 text-sm font-medium hover:bg-accent"
-            >
-              Cancel
-            </button>
+          <DialogFooter className={dialogFooterClass}>
             <button
               onClick={saveEpisodeEdits}
-              className="rounded-xl px-4 py-2 text-sm font-semibold text-primary-foreground"
+              className={dialogPrimaryButtonClass}
               style={{ background: "var(--gradient-primary)" }}
             >
               Save
+            </button>
+            <button
+              onClick={() => setEditEpisodeOpen(false)}
+              className={dialogSecondaryButtonClass}
+            >
+              Cancel
             </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <CloseEpisodeDialog
-        episode={episode.status === "open" ? episode : null}
-        open={closeDialogOpen}
-        onOpenChange={setCloseDialogOpen}
-        onClosed={() => navigate({ to: "/timeline" })}
-      />
 
       <AlertDialog
         open={deleteLogTarget !== null}
@@ -508,6 +577,6 @@ function EpisodePage() {
       </AlertDialog>
 
       <BottomNav />
-    </main>
+    </div>
   );
 }

@@ -14,10 +14,12 @@ export const DRUG_SHORT: Record<Drug, string> = {
 
 export const DOSE_AMOUNTS_ML = [2.5, 5, 7.5, 10] as const;
 
-export const CUSTOM_DRUG_COLOR = "oklch(0.52 0.14 300)";
+export const CUSTOM_DRUG_COLOR = "#9B9A97";
 
-const PARA_COLOR = "oklch(0.55 0.10 210)";
-const IBU_COLOR = "oklch(0.60 0.14 38)";
+const PARA_COLOR = "var(--child-accent-foreground)";
+const PARA_TEXT_COLOR = "#ffffff";
+const IBU_COLOR = "var(--peach)";
+const IBU_TEXT_COLOR = "var(--charcoal)";
 
 /** Migrate legacy localStorage value. */
 export function normalizeDrug(drug: string | null | undefined): Drug | null {
@@ -41,21 +43,24 @@ export function formatAmountMl(amount: number | null): string | null {
 
 export function getLogMedicationDisplay(
   log: Pick<LogEntry, "drug" | "customDrug" | "amount">,
-): { label: string; short: string; color: string; amountLabel: string | null } | null {
+): { label: string; short: string; color: string; textColor: string; amountLabel: string | null } | null {
   if (log.customDrug?.trim()) {
     const name = log.customDrug.trim();
     return {
       label: name,
       short: name.slice(0, 2).toUpperCase(),
       color: CUSTOM_DRUG_COLOR,
+      textColor: "#ffffff",
       amountLabel: formatAmountMl(log.amount),
     };
   }
   if (log.drug) {
+    const isPara = log.drug === "paracetamol";
     return {
       label: DRUG_LABELS[log.drug],
       short: DRUG_SHORT[log.drug],
-      color: log.drug === "paracetamol" ? PARA_COLOR : IBU_COLOR,
+      color: isPara ? PARA_COLOR : IBU_COLOR,
+      textColor: isPara ? PARA_TEXT_COLOR : IBU_TEXT_COLOR,
       amountLabel: formatAmountMl(log.amount),
     };
   }

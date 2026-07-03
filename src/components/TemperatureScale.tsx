@@ -1,27 +1,33 @@
-const TICKS = [37, 38, 39, 40, 41, 42];
+import type { TemperatureUnit } from "@/lib/temperature-unit-store";
+import { getTemperatureScaleTicks } from "@/lib/temperature";
 
-export function TemperatureScale({ compact = false }: { compact?: boolean }) {
+export function TemperatureScale({
+  compact = false,
+  unit = "celsius",
+}: {
+  compact?: boolean;
+  unit?: TemperatureUnit;
+}) {
+  const ticks = getTemperatureScaleTicks(unit);
+
   return (
-    <div className={`relative ${compact ? "mt-1 h-3.5" : "mt-2 h-5"}`}>
-      {TICKS.map((t) => {
-        const left = ((t - 37) / 5) * 100;
-        return (
-          <div
-            key={t}
-            className="absolute top-0 flex flex-col items-center"
-            style={{ left: `${left}%`, transform: "translateX(-50%)" }}
+    <div className={`relative ${compact ? "mt-0.5 h-3" : "mt-2 h-5"}`}>
+      {ticks.map((tick) => (
+        <div
+          key={tick.value}
+          className="absolute top-0 flex flex-col items-center"
+          style={{ left: `${tick.position}%`, transform: "translateX(-50%)" }}
+        >
+          <div className={`w-px bg-border ${compact ? "h-1" : "h-2"}`} />
+          <span
+            className={`tabular-nums font-semibold text-muted-foreground ${
+              compact ? "mt-0 text-[10px]" : "mt-0.5 text-xs"
+            }`}
           >
-            <div className={`w-px bg-border ${compact ? "h-1" : "h-2"}`} />
-            <span
-              className={`tabular-nums font-semibold text-muted-foreground ${
-                compact ? "mt-0 text-[11px]" : "mt-0.5 text-xs"
-              }`}
-            >
-              {t}
-            </span>
-          </div>
-        );
-      })}
+            {unit === "fahrenheit" ? tick.value.toFixed(1) : String(Math.round(tick.value))}
+          </span>
+        </div>
+      ))}
     </div>
   );
 }

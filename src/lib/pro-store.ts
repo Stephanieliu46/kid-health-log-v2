@@ -5,8 +5,18 @@ const listeners = new Set<() => void>();
 const paywallListeners = new Set<() => void>();
 const purchasingListeners = new Set<() => void>();
 
+export type PaywallReason = "add_child" | "new_episode" | "emergency_pass" | "generic";
+
+export type OpenPaywallOptions = {
+  emergencyLogsRemaining?: number;
+  onEmergencyLog?: () => void;
+};
+
 let isPro = false;
 let paywallOpen = false;
+let paywallReason: PaywallReason = "generic";
+let paywallEmergencyLogsRemaining: number | null = null;
+let paywallEmergencyLogHandler: (() => void) | null = null;
 let purchasing = false;
 let initialized = false;
 
@@ -63,13 +73,38 @@ export function purchasePro(): Promise<void> {
   });
 }
 
+function clearPaywallContext() {
+  paywallReason = "generic";
+  paywallEmergencyLogsRemaining = null;
+  paywallEmergencyLogHandler = null;
+}
+
 export function setPaywallOpen(open: boolean) {
   paywallOpen = open;
+  if (!open) clearPaywallContext();
   paywallListeners.forEach((l) => l());
 }
 
-export function openPaywall() {
-  setPaywallOpen(true);
+export function openPaywall(reason: PaywallReason = "generic", options?: OpenPaywallOptions) {
+  paywallReason = reason;
+  paywallEmergencyLogsRemaining = options?.emergencyLogsRemaining ?? null;
+  paywallEmergencyLogHandler = options?.onEmergencyLog ?? null;
+  paywallOpen = true;
+  paywallListeners.forEach((l) => l());
+}
+
+export function usePaywallEmergencyLogsRemaining(): number | null {
+  return useSyncExternalStore(
+    subscribePaywall,
+    () => paywallEmergencyLogsRemaining,
+    () => null,
+  );
+}
+
+export function consumeEmergencyLogAction(): (() => void) | null {
+  const handler = paywallEmergencyLogHandler;
+  setPaywallOpen(false);
+  return handler;
 }
 
 export function useIsPro(): boolean {
@@ -111,6 +146,22 @@ function getPaywallSnapshot(): boolean {
   return paywallOpen;
 }
 
+function getPaywallReasonSnapshot(): PaywallReason {
+  return paywallReason;
+}
+
+export function usePaywallReason(): PaywallReason {
+  return useSyncExternalStore(
+    subscribePaywall,
+    getPaywallReasonSnapshot,
+    getPaywallReasonServerSnapshot,
+  );
+}
+
+function getPaywallReasonServerSnapshot(): PaywallReason {
+  return "generic";
+}
+
 function getPaywallServerSnapshot(): boolean {
   return false;
 }
@@ -141,6 +192,7 @@ export function hydrateProStore() {
 export function resetProStore() {
   isPro = false;
   paywallOpen = false;
+  clearPaywallContext();
   purchasing = false;
   initialized = false;
   if (typeof window !== "undefined") {

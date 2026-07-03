@@ -22,7 +22,7 @@ export function TabPage({
   if (scrollable) {
     return (
       <main className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain touch-pan-y [-webkit-overflow-scrolling:touch]">
-        <div className={`flex flex-col px-4 pt-2 pb-[4.75rem] ${className}`}>
+        <div className={`flex flex-col px-4 pt-3 pb-[6.25rem] ${className}`}>
           {children}
         </div>
       </main>
@@ -31,7 +31,7 @@ export function TabPage({
 
   return (
     <main
-      className={`flex-1 flex flex-col min-h-0 overflow-hidden px-4 pt-2 pb-[5.25rem] ${className}`}
+      className={`flex-1 flex flex-col min-h-0 overflow-hidden px-4 pt-3 pb-[6.25rem] ${className}`}
     >
       {children}
     </main>

@@ -8,14 +8,14 @@ export const PERIOD_OPTIONS = [
 
 export type PeriodMonths = (typeof PERIOD_OPTIONS)[number]["months"];
 
-/** Stacked-bar disease categories — high-contrast colors for night reading. */
+/** Stacked-bar disease categories — Morandi accent palette. */
 export const CHART_DISEASE_CATEGORIES = [
-  { key: "feverVaccine", label: "Fever (Vaccine)", color: "#B794F4" },
-  { key: "coldFever", label: "Cold & Fever", color: "#E53E3E" },
-  { key: "cough", label: "Cough", color: "#3182CE" },
-  { key: "allergy", label: "Allergy", color: "#38A169" },
-  { key: "stomachBug", label: "Stomach Bug / Diarrhea", color: "#D69E2E" },
-  { key: "other", label: "Other", color: "#718096" },
+  { key: "feverVaccine", label: "Fever (Vaccine)", color: "#8FADA5" },
+  { key: "coldFever", label: "Cold & Fever", color: "#D9B8AB" },
+  { key: "cough", label: "Cough", color: "#8A9FAA" },
+  { key: "allergy", label: "Allergy", color: "#B8CCC6" },
+  { key: "stomachBug", label: "Stomach Bug / Diarrhea", color: "#C4A090" },
+  { key: "other", label: "Other", color: "#9B9A97" },
 ] as const;
 
 export type ChartCategoryKey = (typeof CHART_DISEASE_CATEGORIES)[number]["key"];

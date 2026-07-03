@@ -5,13 +5,11 @@ export const APP_VERSION = "1.0.0";
 export type FeedbackPayload = {
   message: string;
   isPro: boolean;
-  parentName?: string;
 };
 
 export async function submitFeedback({
   message,
   isPro,
-  parentName,
 }: FeedbackPayload): Promise<void> {
   const trimmed = message.trim();
   if (!trimmed) {
@@ -28,7 +26,6 @@ export async function submitFeedback({
       message: trimmed,
       appVersion: APP_VERSION,
       isPro,
-      parentName: parentName?.trim() || "Parent",
     }),
   });
 
