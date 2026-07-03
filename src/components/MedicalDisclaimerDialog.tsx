@@ -52,19 +52,19 @@ export function MedicalDisclaimerAcceptDialog({
   return (
     <AlertDialog open={open}>
       <AlertDialogContent
-        className="max-w-md max-h-[90dvh] overflow-y-auto border-primary/20"
+        className="flex max-w-md max-h-[85dvh] flex-col border-primary/20"
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
-        <AlertDialogHeader>
+        <AlertDialogHeader className="shrink-0">
           <AlertDialogTitle className="text-lg">{MEDICAL_DISCLAIMER_TITLE}</AlertDialogTitle>
-          <AlertDialogDescription asChild>
-            <div className="space-y-3 text-left">
-              <p className="text-sm font-medium text-foreground">{MEDICAL_DISCLAIMER_INTRO}</p>
-              <MedicalDisclaimerBody />
-            </div>
-          </AlertDialogDescription>
         </AlertDialogHeader>
-        <AlertDialogFooter>
+        <AlertDialogDescription asChild>
+          <div className="min-h-0 flex-1 space-y-3 overflow-y-auto rounded-lg border border-border/60 bg-muted/30 p-3 text-left">
+            <p className="text-sm font-medium text-foreground">{MEDICAL_DISCLAIMER_INTRO}</p>
+            <MedicalDisclaimerBody />
+          </div>
+        </AlertDialogDescription>
+        <AlertDialogFooter className="shrink-0">
           <AlertDialogAction
             onClick={onAccept}
             className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
@@ -86,21 +86,21 @@ export function MedicalDisclaimerViewDialog({
 }) {
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
-      <AlertDialogContent className="max-w-md max-h-[90dvh] overflow-y-auto">
-        <AlertDialogHeader>
+      <AlertDialogContent className="flex max-w-md max-h-[85dvh] flex-col">
+        <AlertDialogHeader className="shrink-0">
           <AlertDialogTitle className="text-lg">
             Medical Disclaimer &amp; Privacy Policy
           </AlertDialogTitle>
-          <AlertDialogDescription asChild>
-            <div className="space-y-4 text-left">
-              <div>
-                <p className="text-sm font-bold text-foreground mb-2">{MEDICAL_DISCLAIMER_TITLE}</p>
-                <MedicalDisclaimerBody showPrivacy />
-              </div>
-            </div>
-          </AlertDialogDescription>
         </AlertDialogHeader>
-        <AlertDialogFooter>
+        <AlertDialogDescription asChild>
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto rounded-lg border border-border/60 bg-muted/30 p-3 text-left">
+            <div>
+              <p className="text-sm font-bold text-foreground mb-2">{MEDICAL_DISCLAIMER_TITLE}</p>
+              <MedicalDisclaimerBody showPrivacy />
+            </div>
+          </div>
+        </AlertDialogDescription>
+        <AlertDialogFooter className="shrink-0">
           <AlertDialogCancel className="w-full">Close</AlertDialogCancel>
         </AlertDialogFooter>
       </AlertDialogContent>

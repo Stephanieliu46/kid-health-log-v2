@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Users,
   Pencil,
@@ -19,6 +19,8 @@ import {
   Star,
   FileText,
   Download,
+  Upload,
+  DatabaseBackup,
 } from "lucide-react";
 import { BottomNav } from "@/components/BottomNav";
 import { AppShell, TabPage } from "@/components/AppShell";
@@ -70,6 +72,7 @@ import {
   type TemperatureUnit,
 } from "@/lib/temperature-unit-store";
 import { setTheme, useTheme, type Theme } from "@/lib/theme-store";
+import { exportBackup, importBackup } from "@/lib/data-backup";
 
 const SETTINGS_SECTION_STYLES = {
   children: {
@@ -91,6 +94,11 @@ const SETTINGS_SECTION_STYLES = {
     borderLeftWidth: 3,
     borderLeftColor: "var(--episode-open)",
     background: "var(--episode-open-muted)",
+  },
+  backup: {
+    borderLeftWidth: 3,
+    borderLeftColor: "var(--episode-closed)",
+    background: "var(--episode-closed-muted)",
   },
 } as const;
 
@@ -122,6 +130,9 @@ function SettingsPage() {
   const [disclaimerOpen, setDisclaimerOpen] = useState(false);
   const [updateCheck, setUpdateCheck] = useState<AppUpdateCheckResult | null>(null);
   const [updateChecking, setUpdateChecking] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const importInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -253,6 +264,40 @@ function SettingsPage() {
       return;
     }
     openExternalUrl(url);
+  };
+
+  const handleExportData = async () => {
+    setExporting(true);
+    try {
+      await exportBackup();
+      toast.success("Backup exported. Keep the file somewhere safe (e.g. iCloud Files).");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Export failed.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const handleImportFile = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (
+      !window.confirm(
+        "Importing replaces the app's current data with the backup. This cannot be undone. Continue?",
+      )
+    ) {
+      return;
+    }
+    setImporting(true);
+    try {
+      await importBackup(file);
+      toast.success("Backup restored — reloading…");
+      setTimeout(() => window.location.reload(), 600);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Import failed.");
+      setImporting(false);
+    }
   };
 
   const aboutActionClass =
@@ -465,6 +510,53 @@ function SettingsPage() {
                 </button>
               ))}
             </div>
+          </section>
+
+          {/* Data backup */}
+          <section className={sectionCardClass} style={SETTINGS_SECTION_STYLES.backup}>
+            <div className={sectionHeaderClass}>
+              <DatabaseBackup className="h-3.5 w-3.5 text-foreground" />
+              <h2 className={sectionTitleClass}>Data Backup</h2>
+            </div>
+            <p className="mb-1.5 text-[11px] leading-snug text-muted-foreground">
+              All data lives only on this device. Export a backup file regularly and keep it in
+              iCloud Files — you can restore it here after switching phones or reinstalling.
+            </p>
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                onClick={handleExportData}
+                disabled={exporting}
+                className={`${aboutActionClass} justify-center disabled:opacity-60`}
+              >
+                {exporting ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Download className="h-3.5 w-3.5" />
+                )}
+                Export data
+              </button>
+              <button
+                type="button"
+                onClick={() => importInputRef.current?.click()}
+                disabled={importing}
+                className={`${aboutActionClass} justify-center disabled:opacity-60`}
+              >
+                {importing ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Upload className="h-3.5 w-3.5" />
+                )}
+                Import data
+              </button>
+            </div>
+            <input
+              ref={importInputRef}
+              type="file"
+              accept="application/json,.json"
+              onChange={handleImportFile}
+              className="hidden"
+            />
           </section>
 
           {/* Feedback */}
