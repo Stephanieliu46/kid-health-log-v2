@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.0.3 — 2026-07-11
+
+### Fixed
+- **Backup export no longer creates a stray text file**: the share-sheet `title` was being saved by iOS "Save to Files" as a separate .txt containing just the app name. Removed the title so only `kidhealth-backup.json` is written.
+
 ## v1.0.2 — 2026-07-11
 
 ### Changed

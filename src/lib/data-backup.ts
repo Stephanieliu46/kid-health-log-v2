@@ -81,7 +81,9 @@ export async function exportBackup(): Promise<number> {
 
   if (typeof navigator.canShare === "function" && navigator.canShare({ files: [file] })) {
     try {
-      await navigator.share({ files: [file], title: "KidHealth Log backup" });
+      // No title/text — iOS "Save to Files" writes them as a stray .txt
+      // file alongside the actual backup.
+      await navigator.share({ files: [file] });
       recordBackupExported(backup.exportedAt);
       return count;
     } catch (e) {
