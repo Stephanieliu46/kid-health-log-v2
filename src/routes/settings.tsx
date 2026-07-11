@@ -316,28 +316,8 @@ function SettingsPage() {
         </header>
 
         <div className="flex-1 min-h-0 mt-1.5 space-y-1.5 pb-1">
-          {/* Pro membership card */}
-          {isPro ? (
-            <section
-              className={sectionCardClass}
-              style={{ background: "var(--gradient-pro-active)" }}
-            >
-              <div className="flex items-start gap-2">
-                <div
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--child-accent-foreground)]"
-                  style={{ background: "var(--child-accent)" }}
-                >
-                  <Shield className="h-4 w-4" />
-                </div>
-                <div className="min-w-0">
-                  <h2 className={sectionTitleClass}>Permanent Pro activated</h2>
-                  <p className="mt-0.5 text-xs text-muted-foreground leading-snug">
-                    Unlimited episodes · Up to 5 child profiles · Multi-child quick switch
-                  </p>
-                </div>
-              </div>
-            </section>
-          ) : (
+          {/* Pro upgrade card (activated state is shown above About instead) */}
+          {!isPro && (
             <section
               className={sectionCardClass}
               style={{ background: "var(--gradient-pro-card)" }}
@@ -589,6 +569,29 @@ function SettingsPage() {
               )}
             </button>
           </section>
+
+          {/* Pro membership status */}
+          {isPro && (
+            <section
+              className={sectionCardClass}
+              style={{ background: "var(--gradient-pro-active)" }}
+            >
+              <div className="flex items-start gap-2">
+                <div
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-[var(--child-accent-foreground)]"
+                  style={{ background: "var(--child-accent)" }}
+                >
+                  <Shield className="h-4 w-4" />
+                </div>
+                <div className="min-w-0">
+                  <h2 className={sectionTitleClass}>Permanent Pro activated</h2>
+                  <p className="mt-0.5 text-xs text-muted-foreground leading-snug">
+                    Unlimited episodes · Up to 5 child profiles · Multi-child quick switch
+                  </p>
+                </div>
+              </div>
+            </section>
+          )}
 
           <section className={sectionCardClass} style={SETTINGS_SECTION_STYLES.about}>
             <div className={sectionHeaderClass}>
