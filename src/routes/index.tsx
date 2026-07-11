@@ -141,7 +141,28 @@ function QuickLog() {
   const [noTemp, setNoTemp] = useState(false);
   const [date, setDate] = useState(() => formatDateInput(new Date()));
   const [time, setTime] = useState(() => formatTimeInput(new Date()));
+  /** True once the user manually edits date/time; pauses the live clock until the next save. */
+  const [timeTouched, setTimeTouched] = useState(false);
   const [notes, setNotes] = useState("");
+
+  useEffect(() => {
+    if (timeTouched) return;
+    const refresh = () => {
+      const now = new Date();
+      setDate(formatDateInput(now));
+      setTime(formatTimeInput(now));
+    };
+    refresh();
+    const intervalId = setInterval(refresh, 30_000);
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      clearInterval(intervalId);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, [timeTouched]);
   const [safetyModal, setSafetyModal] = useState<SafetyModalState | null>(null);
   const [safetyOverrides, setSafetyOverrides] = useState<Set<string>>(() => new Set());
 
@@ -303,6 +324,10 @@ function QuickLog() {
       setDose(null);
       setNotes("");
       setSafetyOverrides(new Set());
+      const now = new Date();
+      setDate(formatDateInput(now));
+      setTime(formatTimeInput(now));
+      setTimeTouched(false);
     } catch {
       toast.error("Save failed", { description: "Please try again." });
     }
@@ -508,13 +533,19 @@ function QuickLog() {
             <input
               type="date"
               value={date}
-              onChange={(e) => setDate(e.target.value)}
+              onChange={(e) => {
+                setDate(e.target.value);
+                setTimeTouched(true);
+              }}
               className="flex-1 min-w-0 bg-transparent text-sm font-semibold text-foreground outline-none"
             />
             <input
               type="time"
               value={time}
-              onChange={(e) => setTime(e.target.value)}
+              onChange={(e) => {
+                setTime(e.target.value);
+                setTimeTouched(true);
+              }}
               className="bg-transparent text-sm font-semibold text-foreground outline-none"
             />
           </div>
