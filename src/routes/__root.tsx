@@ -9,7 +9,7 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
@@ -40,6 +40,9 @@ import { hydrateThemeStore } from "@/lib/theme-store";
 import { MedicalDisclaimerAcceptDialog } from "@/components/MedicalDisclaimerDialog";
 
 const THEME_BOOTSTRAP = `(function(){try{var t=JSON.parse(localStorage.getItem("kidhealth.theme.v1")||'"system"');var d=t==="dark"||(t==="system"&&window.matchMedia("(prefers-color-scheme: dark)").matches);if(d)document.documentElement.classList.add("dark")}catch(e){}})();`;
+
+/** After this long in the background, reopening the app returns to Quick Log. */
+const RETURN_TO_QUICK_LOG_AFTER_MS = 5 * 60 * 1000;
 
 function NotFoundComponent() {
   return (
@@ -186,6 +189,35 @@ function RootComponent() {
       navigate({ to: "/", replace: true });
     }
   }, [ready, pathname, navigate]);
+
+  // App launch (full page load) always starts on Quick Log, even when the
+  // entry URL points elsewhere (e.g. a home-screen bookmark saved on /settings).
+  const launchRedirectDone = useRef(false);
+  useEffect(() => {
+    if (!ready || launchRedirectDone.current) return;
+    launchRedirectDone.current = true;
+    const path = window.location.pathname;
+    if (path !== "/" && path !== "/login" && path !== "/register") {
+      navigate({ to: "/", replace: true });
+    }
+  }, [ready, navigate]);
+
+  useEffect(() => {
+    if (!ready) return;
+    let hiddenAt: number | null = null;
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "hidden") {
+        hiddenAt = Date.now();
+        return;
+      }
+      if (hiddenAt !== null && Date.now() - hiddenAt >= RETURN_TO_QUICK_LOG_AFTER_MS) {
+        navigate({ to: "/", replace: true });
+      }
+      hiddenAt = null;
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+  }, [ready, navigate]);
 
   if (!ready) {
     return (
