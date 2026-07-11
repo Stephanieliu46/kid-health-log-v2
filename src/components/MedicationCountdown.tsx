@@ -95,7 +95,14 @@ export function DoseCountdown({
           compact ? "mt-1 px-1.5 py-1 text-[10px]" : "mt-2 px-2 py-1.5 text-xs"
         } bg-[var(--muted)] text-destructive border-[var(--border)]`}
       >
-        {doseCount24h}/{maxDoses24h} doses in 24h — limit reached
+        <div>
+          {doseCount24h}/{maxDoses24h} doses in 24h — limit reached
+        </div>
+        {lastDose !== null && (
+          <div className="mt-0.5 tabular-nums font-medium text-muted-foreground">
+            Last Dose: {formatLastDoseLabel(lastDose, now)} ({formatElapsedAgo(now - lastDose)})
+          </div>
+        )}
       </div>
     );
   }
