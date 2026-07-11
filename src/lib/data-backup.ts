@@ -43,10 +43,27 @@ function buildBackup(): BackupFile {
   };
 }
 
-function backupFilename(): string {
-  const d = new Date();
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `kidhealth-backup-${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}.json`;
+/**
+ * Fixed filename so saving to the same iCloud folder replaces the previous
+ * backup instead of piling up dated copies. The export time is visible in the
+ * Files app (modified date), inside the file (exportedAt), and in Settings.
+ */
+const BACKUP_FILENAME = "kidhealth-backup.json";
+
+const LAST_EXPORT_KEY = "kidhealth.lastBackupAt.v1";
+
+/** ISO timestamp of the last successful export on this device, or null. */
+export function getLastBackupAt(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(LAST_EXPORT_KEY);
+}
+
+function recordBackupExported(exportedAt: string) {
+  try {
+    localStorage.setItem(LAST_EXPORT_KEY, exportedAt);
+  } catch {
+    // Non-critical — ignore quota errors.
+  }
 }
 
 /**
@@ -60,12 +77,12 @@ export async function exportBackup(): Promise<number> {
   if (count === 0) throw new Error("Nothing to export yet.");
 
   const json = JSON.stringify(backup, null, 2);
-  const filename = backupFilename();
-  const file = new File([json], filename, { type: "application/json" });
+  const file = new File([json], BACKUP_FILENAME, { type: "application/json" });
 
   if (typeof navigator.canShare === "function" && navigator.canShare({ files: [file] })) {
     try {
       await navigator.share({ files: [file], title: "KidHealth Log backup" });
+      recordBackupExported(backup.exportedAt);
       return count;
     } catch (e) {
       // User cancelled the share sheet — not an error, but nothing was saved.
@@ -79,11 +96,12 @@ export async function exportBackup(): Promise<number> {
   const url = URL.createObjectURL(new Blob([json], { type: "application/json" }));
   const a = document.createElement("a");
   a.href = url;
-  a.download = filename;
+  a.download = BACKUP_FILENAME;
   document.body.appendChild(a);
   a.click();
   a.remove();
   URL.revokeObjectURL(url);
+  recordBackupExported(backup.exportedAt);
   return count;
 }
 

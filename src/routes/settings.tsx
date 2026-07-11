@@ -72,7 +72,7 @@ import {
   type TemperatureUnit,
 } from "@/lib/temperature-unit-store";
 import { setTheme, useTheme, type Theme } from "@/lib/theme-store";
-import { exportBackup, importBackup } from "@/lib/data-backup";
+import { exportBackup, getLastBackupAt, importBackup } from "@/lib/data-backup";
 
 const SETTINGS_SECTION_STYLES = {
   children: {
@@ -132,7 +132,13 @@ function SettingsPage() {
   const [updateChecking, setUpdateChecking] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [lastBackupAt, setLastBackupAt] = useState<string | null>(null);
   const importInputRef = useRef<HTMLInputElement>(null);
+
+  // Read after mount — localStorage is unavailable during SSR.
+  useEffect(() => {
+    setLastBackupAt(getLastBackupAt());
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -270,7 +276,10 @@ function SettingsPage() {
     setExporting(true);
     try {
       await exportBackup();
-      toast.success("Backup exported. Keep the file somewhere safe (e.g. iCloud Files).");
+      setLastBackupAt(getLastBackupAt());
+      toast.success(
+        "Backup exported. Saving over the previous kidhealth-backup.json replaces it.",
+      );
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Export failed.");
     } finally {
@@ -530,6 +539,18 @@ function SettingsPage() {
                 Import data
               </button>
             </div>
+            {lastBackupAt && (
+              <p className="mt-1.5 text-[11px] font-medium text-muted-foreground tabular-nums">
+                Last export:{" "}
+                {new Date(lastBackupAt).toLocaleString("en-GB", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </p>
+            )}
             <input
               ref={importInputRef}
               type="file"

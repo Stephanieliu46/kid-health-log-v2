@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.0.2 — 2026-07-11
+
+### Changed
+- **Backup export uses a fixed filename** (`kidhealth-backup.json`, previously dated like `kidhealth-backup-2026-07-11.json`): saving to the same iCloud folder now replaces the previous backup instead of accumulating copies. The export time remains visible via the file's modified date in the Files app, the `exportedAt` field inside the file, and a new "Last export: [date, time]" line under the Export button in Settings → Data Backup.
+
 ## v1.0.1 — 2026-07-11
 
 UAT doc: v2.3 · PRD doc: v1.3
