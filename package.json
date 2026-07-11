@@ -10,7 +10,7 @@
     "preview": "vite preview",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "uat:docx": "bun scripts/build-uat-v2.2-docx.mjs"
+    "uat:docx": "bun scripts/build-uat-v2.3-docx.mjs"
   },
   "dependencies": {
     "@capacitor/cli": "^8.4.0",

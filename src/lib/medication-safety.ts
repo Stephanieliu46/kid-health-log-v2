@@ -61,6 +61,35 @@ export function countDrugDosesInRollingWindow(
   return count;
 }
 
+/**
+ * When the rolling 24h dose count is at/over the max, returns the timestamp at
+ * which enough old doses age out of the window for another dose to be allowed.
+ * Returns null when the limit is not currently reached.
+ */
+export function getDailyMaxResetTime(
+  child: string,
+  drug: Drug,
+  atTime: number = Date.now(),
+): number | null {
+  const windowStart = atTime - ROLLING_WINDOW_MS;
+  const times: number[] = [];
+  for (const log of getLogsSnapshot()) {
+    if (log.child !== child || log.drug !== drug) continue;
+    const ts = parseLogTimestamp(log.date, log.time);
+    if (Number.isNaN(ts)) continue;
+    if (ts >= windowStart && ts <= atTime) times.push(ts);
+  }
+
+  const maxDoses = MAX_DOSES_IN_24H[drug];
+  if (times.length < maxDoses) return null;
+
+  // The count drops below the max once all but (maxDoses - 1) of the current
+  // window's doses have aged out — i.e. 24h after the (count - maxDoses + 1)th
+  // oldest dose.
+  times.sort((a, b) => a - b);
+  return times[times.length - maxDoses] + ROLLING_WINDOW_MS;
+}
+
 /** Rolling 24h daily max — blocks when limit already reached (next dose would exceed NHS max). */
 export function checkDailyMaxDose(
   child: string,

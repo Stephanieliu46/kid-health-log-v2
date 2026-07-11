@@ -4,6 +4,7 @@ import { getLastDrugDoseTimestamp, useLogs } from "@/lib/log-store";
 import {
   checkDailyMaxDose,
   countDrugDosesInRollingWindow,
+  getDailyMaxResetTime,
   MAX_DOSES_IN_24H,
 } from "@/lib/medication-safety";
 import { type Drug } from "@/lib/medications";
@@ -49,6 +50,12 @@ export function formatLastDoseLabel(timestamp: number, now: number = Date.now())
     return `Yesterday ${timeLabel}`;
   }
 
+  const tomorrow = new Date(nowDate);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  if (isSameCalendarDay(doseDate, tomorrow)) {
+    return `Tomorrow ${timeLabel}`;
+  }
+
   const dateLabel = doseDate.toLocaleDateString("en-US", {
     weekday: "short",
     month: "short",
@@ -63,6 +70,14 @@ export function formatElapsedAgo(elapsedMs: number): string {
   const h = Math.floor(totalMinutes / 60);
   const m = totalMinutes % 60;
   return `${h}h ${m}m ago`;
+}
+
+/** e.g. "5h 12m" (rounds up so we never promise an earlier time). */
+export function formatDurationShort(ms: number): string {
+  const totalMinutes = Math.ceil(Math.max(0, ms) / 60_000);
+  const h = Math.floor(totalMinutes / 60);
+  const m = totalMinutes % 60;
+  return `${h}h ${m}m`;
 }
 
 /** Inline countdown shown below dose buttons on each drug card. */
@@ -89,6 +104,13 @@ export function DoseCountdown({
   const maxDoses24h = MAX_DOSES_IN_24H[drug];
 
   if (dailyMax) {
+    const resetAt = getDailyMaxResetTime(child, drug, now);
+    // Next dose must also respect the minimum interval since the last dose.
+    const nextAllowedAt =
+      resetAt !== null && lastDose !== null
+        ? Math.max(resetAt, lastDose + INTERVAL_MS[drug])
+        : resetAt;
+
     return (
       <div
         className={`rounded-md text-center leading-snug font-semibold border ${
@@ -101,6 +123,12 @@ export function DoseCountdown({
         {lastDose !== null && (
           <div className="mt-0.5 tabular-nums font-medium text-muted-foreground">
             Last Dose: {formatLastDoseLabel(lastDose, now)} ({formatElapsedAgo(now - lastDose)})
+          </div>
+        )}
+        {nextAllowedAt !== null && nextAllowedAt > now && (
+          <div className="mt-0.5 tabular-nums font-medium text-muted-foreground">
+            Next dose in {formatDurationShort(nextAllowedAt - now)} (
+            {formatLastDoseLabel(nextAllowedAt, now)})
           </div>
         )}
       </div>
