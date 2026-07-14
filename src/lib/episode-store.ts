@@ -306,7 +306,7 @@ export function getEpisode(id: string): Episode | null {
 
 export function updateEpisode(
   id: string,
-  patch: Partial<Pick<Episode, "child" | "diseaseTypes" | "notes" | "openedAt">>,
+  patch: Partial<Pick<Episode, "child" | "diseaseTypes" | "notes" | "openedAt" | "closedAt">>,
 ) {
   initFromStorage();
   write(

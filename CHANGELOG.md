@@ -1,5 +1,10 @@
 # Changelog
 
+## v1.0.5 — 2026-07-14
+
+### Added
+- **Edit Episode now edits times too**: the pencil (Edit Episode) dialog gains a Start time field next to Start date, and — for closed episodes — End date and End time fields. End time before the episode start is rejected ("End time cannot be before episode start"). Previously only the start date was editable (saved at midnight).
+
 ## v1.0.4 — 2026-07-14
 
 ### Added

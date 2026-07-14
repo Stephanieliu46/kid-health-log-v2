@@ -70,6 +70,7 @@ import {
   dialogSecondaryButtonClass,
 } from "@/lib/dialog-ui";
 import { useTemperatureUnit } from "@/lib/temperature-unit-store";
+import { formatCloseTimeInput, parseCloseTimestamp } from "@/lib/episode-close";
 
 export const Route = createFileRoute("/episode/$episodeId")({
   head: () => ({
@@ -102,6 +103,9 @@ function EpisodePage() {
   const [editOtherDetail, setEditOtherDetail] = useState("");
   const [editNotes, setEditNotes] = useState("");
   const [editStartDate, setEditStartDate] = useState("");
+  const [editStartTime, setEditStartTime] = useState("");
+  const [editEndDate, setEditEndDate] = useState("");
+  const [editEndTime, setEditEndTime] = useState("");
   const [editChild, setEditChild] = useState<string>("");
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [deleteLogTarget, setDeleteLogTarget] = useState<LogEntry | null>(null);
@@ -150,6 +154,14 @@ function EpisodePage() {
     setEditOtherDetail(parsed.otherDetail);
     setEditNotes(episode.notes ?? "");
     setEditStartDate(formatDateInput(episode.openedAt));
+    setEditStartTime(formatCloseTimeInput(new Date(episode.openedAt)));
+    if (episode.status === "closed" && episode.closedAt) {
+      setEditEndDate(formatDateInput(episode.closedAt));
+      setEditEndTime(formatCloseTimeInput(new Date(episode.closedAt)));
+    } else {
+      setEditEndDate("");
+      setEditEndTime("");
+    }
     setEditChild(episode.child);
     setEditTypesExpanded(false);
     setEditEpisodeOpen(true);
@@ -163,8 +175,24 @@ function EpisodePage() {
     const diseaseTypes = buildDiseaseTypesFromSelection(editSelectedTypes, editOtherDetail);
     const types = diseaseTypes.length > 0 ? diseaseTypes : [DEFAULT_DISEASE_TYPE];
 
-    const [y, m, d] = editStartDate.split("-").map(Number);
-    const openedAt = new Date(y, m - 1, d).getTime();
+    const openedAt = parseCloseTimestamp(editStartDate, editStartTime || "00:00");
+    if (Number.isNaN(openedAt)) {
+      toast.error("Invalid start date or time");
+      return;
+    }
+
+    let closedAt: number | undefined;
+    if (episode.status === "closed") {
+      closedAt = parseCloseTimestamp(editEndDate, editEndTime || "00:00");
+      if (Number.isNaN(closedAt)) {
+        toast.error("Invalid end date or time");
+        return;
+      }
+      if (closedAt < openedAt) {
+        toast.error("End time cannot be before episode start");
+        return;
+      }
+    }
 
     if (editChild !== episode.child) {
       updateLogsChildForEpisode(episode.id, editChild);
@@ -175,6 +203,7 @@ function EpisodePage() {
       diseaseTypes: types,
       notes: editNotes.trim() || null,
       openedAt,
+      ...(closedAt !== undefined ? { closedAt } : {}),
     });
     setEditEpisodeOpen(false);
     toast.success("Episode updated");
@@ -481,17 +510,56 @@ function EpisodePage() {
                 </button>
               )}
             </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground">Start Date</label>
-              <div className={dialogDateWrapClass}>
-                <input
-                  type="date"
-                  value={editStartDate}
-                  onChange={(e) => setEditStartDate(e.target.value)}
-                  className={dialogDateFieldClass}
-                />
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Start date</label>
+                <div className={dialogDateWrapClass}>
+                  <input
+                    type="date"
+                    value={editStartDate}
+                    onChange={(e) => setEditStartDate(e.target.value)}
+                    className={dialogDateFieldClass}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground">Start time</label>
+                <div className={dialogDateWrapClass}>
+                  <input
+                    type="time"
+                    value={editStartTime}
+                    onChange={(e) => setEditStartTime(e.target.value)}
+                    className={dialogDateFieldClass}
+                  />
+                </div>
               </div>
             </div>
+            {episode.status === "closed" && (
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">End date</label>
+                  <div className={dialogDateWrapClass}>
+                    <input
+                      type="date"
+                      value={editEndDate}
+                      onChange={(e) => setEditEndDate(e.target.value)}
+                      className={dialogDateFieldClass}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground">End time</label>
+                  <div className={dialogDateWrapClass}>
+                    <input
+                      type="time"
+                      value={editEndTime}
+                      onChange={(e) => setEditEndTime(e.target.value)}
+                      className={dialogDateFieldClass}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
             <div>
               <label className="text-xs font-medium text-muted-foreground">Notes</label>
               <textarea
