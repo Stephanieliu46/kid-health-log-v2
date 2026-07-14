@@ -13,7 +13,7 @@ import {
   getSickDays,
   type Episode,
 } from "@/lib/episode-store";
-import { getLogsForEpisode } from "@/lib/log-store";
+import { getLogsForEpisode, sortLogsDesc } from "@/lib/log-store";
 import {
   formatCloseDateInput,
   formatCloseTimeInput,
@@ -42,9 +42,19 @@ export function CloseEpisodeDialog({ episode, open, onOpenChange, onClosed }: Pr
 
   useEffect(() => {
     if (!open || !episode) return;
-    const now = new Date();
-    setEndDate(formatCloseDateInput(now));
-    setEndTime(formatCloseTimeInput(now));
+    // Default to the most recent log (medicine/temperature) time; fall back to now.
+    const lastLog = sortLogsDesc(getLogsForEpisode(episode.id))[0];
+    const lastTs = lastLog
+      ? new Date(`${lastLog.date}T${lastLog.time}`).getTime()
+      : NaN;
+    if (lastLog && !Number.isNaN(lastTs) && lastTs >= episode.openedAt) {
+      setEndDate(lastLog.date);
+      setEndTime(lastLog.time);
+    } else {
+      const now = new Date();
+      setEndDate(formatCloseDateInput(now));
+      setEndTime(formatCloseTimeInput(now));
+    }
   }, [open, episode?.id]);
 
   const previewCloseAt = useMemo(

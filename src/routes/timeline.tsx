@@ -42,6 +42,13 @@ function EpisodeBlock({
     month: "short",
   });
   const isOpen = variant === "open";
+  const closedLabel =
+    !isOpen && episode.closedAt
+      ? new Date(episode.closedAt).toLocaleDateString("en-GB", {
+          day: "numeric",
+          month: "short",
+        })
+      : null;
 
   return (
     <div
@@ -71,6 +78,7 @@ function EpisodeBlock({
             <span>
               · {episodeLogs.length} {episodeLogs.length === 1 ? "log" : "logs"} · {sickDays}d ·{" "}
               {startedLabel}
+              {closedLabel ? ` – ${closedLabel}` : ""}
               {moreCount > 0 && isOpen ? ` · +${moreCount} more` : ""}
             </span>
           </div>

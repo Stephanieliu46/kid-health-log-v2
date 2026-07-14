@@ -1,5 +1,14 @@
 # Changelog
 
+## v1.0.4 — 2026-07-14
+
+### Added
+- **Closed time shown on episodes**: a closed episode's detail header now shows `Closed [date, time]` after the Started date, and closed cards in the Episodes list show the date range (`12 Jul – 14 Jul`).
+
+### Changed
+- **Episode actions moved to the top**: Log Medicine / Close Episode / Re-open Episode / Delete Episode buttons now sit directly under the episode header, above the log list — no more scrolling past every log to reach them.
+- **Close Episode defaults to last log time**: the End date/time in the Close Episode dialog now pre-fills with the most recent medicine/temperature log's date and time (falls back to now if the episode has no logs or the last log is before the episode start). Still editable before confirming.
+
 ## v1.0.3 — 2026-07-11
 
 ### Fixed

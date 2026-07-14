@@ -130,6 +130,17 @@ function EpisodePage() {
     month: "short",
     year: "numeric",
   });
+  const closedLabel =
+    episode.status === "closed" && episode.closedAt
+      ? `${new Date(episode.closedAt).toLocaleDateString("en-GB", {
+          day: "numeric",
+          month: "short",
+          year: "numeric",
+        })}, ${new Date(episode.closedAt).toLocaleTimeString("en-GB", {
+          hour: "2-digit",
+          minute: "2-digit",
+        })}`
+      : null;
 
   const openEditEpisode = () => {
     const parsed = parseDiseaseTypesForEdit(episode.diseaseTypes);
@@ -234,6 +245,7 @@ function EpisodePage() {
                   <ChildNameBadge name={episode.child} compact />
                   <span>
                     · {sickDays} {sickDays === 1 ? "day" : "days"} · Started {startedLabel}
+                    {closedLabel ? ` · Closed ${closedLabel}` : ""}
                   </span>
                 </p>
               </div>
@@ -266,6 +278,51 @@ function EpisodePage() {
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-y-contain touch-pan-y [-webkit-overflow-scrolling:touch] px-5 pb-8">
+          <div className="mt-4 space-y-2">
+            {episode.status === "open" && (
+              <button
+                onClick={() => setLogMedicineOpen(true)}
+                className="w-full rounded-xl border border-border bg-card py-2 text-xs font-semibold text-foreground transition hover:bg-muted active:scale-[0.98] inline-flex items-center justify-center gap-1.5"
+                style={{
+                  borderLeftWidth: 3,
+                  borderLeftColor: "var(--episode-open)",
+                }}
+              >
+                <Pill className="h-3.5 w-3.5" />
+                Log Medicine
+              </button>
+            )}
+            {episode.status === "open" && (
+              <button
+                onClick={handleClose}
+                className="w-full rounded-xl border border-border bg-card py-2 text-xs font-semibold text-foreground transition hover:bg-accent active:scale-[0.98] inline-flex items-center justify-center gap-1.5"
+              >
+                <Lock className="h-3.5 w-3.5" />
+                Close Episode
+              </button>
+            )}
+            {episode.status === "closed" && (
+              <button
+                onClick={handleReopen}
+                className="w-full rounded-xl border border-border bg-card py-2 text-xs font-semibold text-foreground transition hover:bg-muted active:scale-[0.98] inline-flex items-center justify-center gap-1.5"
+                style={{
+                  borderLeftWidth: 3,
+                  borderLeftColor: "var(--episode-open)",
+                }}
+              >
+                <RotateCcw className="h-3.5 w-3.5" />
+                Re-open Episode
+              </button>
+            )}
+            <button
+              onClick={() => setDeleteConfirmOpen(true)}
+              className="w-full rounded-xl border border-destructive/40 bg-card py-2 text-xs font-semibold text-destructive transition hover:bg-destructive/10 active:scale-[0.98] inline-flex items-center justify-center gap-1.5"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Delete Episode
+            </button>
+          </div>
+
           <div className="mt-4 space-y-1.5">
           {episodeLogs.length === 0 ? (
             <p className="text-sm text-muted-foreground">No logs in this episode yet.</p>
@@ -345,50 +402,6 @@ function EpisodePage() {
           )}
         </div>
 
-        <div className="mt-6 space-y-2">
-          {episode.status === "open" && (
-            <button
-              onClick={() => setLogMedicineOpen(true)}
-              className="w-full rounded-xl border border-border bg-card py-2 text-xs font-semibold text-foreground transition hover:bg-muted active:scale-[0.98] inline-flex items-center justify-center gap-1.5"
-              style={{
-                borderLeftWidth: 3,
-                borderLeftColor: "var(--episode-open)",
-              }}
-            >
-              <Pill className="h-3.5 w-3.5" />
-              Log Medicine
-            </button>
-          )}
-          {episode.status === "open" && (
-            <button
-              onClick={handleClose}
-              className="w-full rounded-xl border border-border bg-card py-2 text-xs font-semibold text-foreground transition hover:bg-accent active:scale-[0.98] inline-flex items-center justify-center gap-1.5"
-            >
-              <Lock className="h-3.5 w-3.5" />
-              Close Episode
-            </button>
-          )}
-          {episode.status === "closed" && (
-            <button
-              onClick={handleReopen}
-              className="w-full rounded-xl border border-border bg-card py-2 text-xs font-semibold text-foreground transition hover:bg-muted active:scale-[0.98] inline-flex items-center justify-center gap-1.5"
-              style={{
-                borderLeftWidth: 3,
-                borderLeftColor: "var(--episode-open)",
-              }}
-            >
-              <RotateCcw className="h-3.5 w-3.5" />
-              Re-open Episode
-            </button>
-          )}
-          <button
-            onClick={() => setDeleteConfirmOpen(true)}
-            className="w-full rounded-xl border border-destructive/40 bg-card py-2 text-xs font-semibold text-destructive transition hover:bg-destructive/10 active:scale-[0.98] inline-flex items-center justify-center gap-1.5"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            Delete Episode
-          </button>
-        </div>
         </div>
       </main>
 

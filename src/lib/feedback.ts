@@ -1,6 +1,6 @@
 const FORMSPREE_ENDPOINT = "https://formspree.io/f/xeewzdvn";
 
-export const APP_VERSION = "1.0.3";
+export const APP_VERSION = "1.0.4";
 
 export type FeedbackPayload = {
   message: string;
