@@ -1,0 +1,77 @@
+UAT 用户验收测试用例 (User Acceptance Test Cases) — v2.4
+更新说明 (v2.4 Changelog · App v1.0.4):
+- v2.3 全部用例保留；本版新增 Episode Closed 时间显示、Episode 详情操作按钮置顶、Close Episode 默认时间三项用例（UAT-41–43），并修订 UAT-34（操作按钮已移至日志列表上方）
+- Episode 详情页头部：Closed 状态的 Episode 在 "Started [日期]" 之后显示 "Closed [日期], [时间]"；Episodes 列表 Closed 卡片显示起止日期区间（如 "11 Jul – 14 Jul"）
+- Episode 详情操作按钮（Log Medicine / Close Episode / Re-open Episode / Delete Episode）从日志列表底部移至头部正下方、日志列表之前，进入页面即可见
+- Close Episode 弹窗 End date / End time 默认取该 Episode 最近一条 Log（用药或体温）的日期与时间；无 Log 或最近 Log 早于 Episode 开始时间时退回当前时间；仍可手动修改
+- App 版本号 1.0.1 → 1.0.4（1.0.2/1.0.3 为数据备份导出修复，无新增用例）
+
+验收记录 (v2.4): 2026-07-14 · 静态代码穿透审查
+
+一、游客登录与多孩管理 (Guest Flow & Child Profiles)
+用例编号 | 功能模块 | 测试场景 (User Scenario) | 操作步骤 (Steps) | 预期结果 (Expected Result) | 状态
+UAT-01 | 初始无感流 | 新用户首次打开 App 页面 | 1. 清空浏览器缓存后重新打开 App 网页。2. 观察首屏与合规弹窗。3. 点击 [I Understand / Agree]。 | 1. 秒进 Quick Log 首页（/），无注册拦截；默认选中 My Child；底部导航可见。2. 首次启动弹出 Medical Disclaimer 弹窗，文案含 "By using this app, you agree to our Medical Disclaimer." 及完整英文免责条款。3. 点击同意后弹窗关闭且不再出现（kidhealth.disclaimer.v1 写入 localStorage），可正常 Save 记录。 | Not Started
+UAT-02 | 免费版多孩红线 | 免费状态下尝试添加第 2 个孩子 | 1. 进入 Settings 页面。2. 点击 [Add] 录入第 2 个名字。 | 拦截成功。系统阻止添加，并弹出 Pro 升级买断弹窗（PaywallModal）。 | PASS
+UAT-03 | Pro版多孩上限 | 模拟激活 Pro 账户后，添加多个孩子 | 1. 模拟点击支付，激活 isPro: true。2. 在 Settings 里连续添加孩子，直到尝试添加第 6 个。 | 1. 前 5 个孩子均成功创建并可自由切换。2. 第 6 个孩子无法添加，Add 按钮变灰，提示："Maximum of 5 child profiles reached"。 | PASS
+UAT-04 | 孩子档案管理 | 修改与删除孩子信息 | 1. 点击孩子名字旁的铅笔图标，修改名字并保存。2. 点击垃圾桶尝试删除。 | 1. 名字成功更新并全站联动（Logs、Episodes、Quick Log 下拉均更新）。2. 弹出英文二次确认："Deleting this child will also permanently remove all their illness episodes and log entries. This cannot be undone." 确认后数据从 localStorage 彻底删除。 | PASS
+UAT-37 | App 启动定位 | 任意入口打开 App 均落在 Quick Log | 1. 从保存在 Settings 页面的主屏幕书签（或直接访问 /settings、/timeline 等 URL）冷启动 App。2. 观察加载完成后的首屏。3. 将 App 切到后台超过 5 分钟后回前台。4. 再将 App 切到后台不足 5 分钟（如 30 秒）回前台。 | 1. 冷启动后无论入口 URL 为何，自动跳转到 Quick Log 首页（/）。2. 后台超过 5 分钟回前台时自动跳回 Quick Log，且时间字段刷新为当前时间。3. 短暂切出（<5 分钟）回来停留在原页面，不发生跳转。 | Not Started
+
+二、 Episode（疾病事件）增删改查 (Episode CRUD)
+用例编号 | 功能模块 | 测试场景 (User Scenario) | 操作步骤 (Steps) | 预期结果 (Expected Result) | 状态
+UAT-05 | 创建首个 Episode | 免费版用户首次记录生病 | 1. 在 Quick Log 首页直接录入一条 Log（如选择 Cough 标签或录入体温/用药）。2. 点击 Save。3. 切换到 Episodes 页面查看。 | 1. 后台自动创建第 1 个 Open 状态的 Episode 并关联该 Log。2. Quick Log 顶部 banner 显示当前 Episode 标题。3. Episodes 页 Open Episodes 区块展示该 Episode 及 mini 时间轴预览；点击进入 Episode 详情可查看完整时间轴。Quick Log 本身不展示时间轴。 | PASS
+UAT-06 | 疾病标签多选追加 | 疾病中途出现并发症 (并发并入) | 1. 在该 Cough Episode 下，通过 Quick Log 录入一条 39.5°C 记录（可不选手动标签）。2. 保存并查看 Episodes / Dashboard。 | 1. 记录保存成功。2. illnessType 自动并入新标签，Episode 标题动态更新为组合名，如 "Cough, Cold & Fever"。 | PASS
+UAT-07 | 免费版第二次生病 | 免费版遇到第二次生病 (Emergency Pass) | 1. 手动关闭第 1 个 Episode（此时本地有 1 个 closed 病历）。2. 再次通过 Quick Log 或 Episodes → New Episode 录入数据（任意时间段，无深夜限制）。 | 无条件放行！允许创建第 2 个新 Episode（isEmergencyPass: true），前 5 条 temp/med Log 内不弹收费墙。Episode 列表或 toast 显示 Emergency Pass 标识。 | PASS
+UAT-08 | 收费墙超时/超额拦截 | 紧急通道额度耗尽拦截 | 1. 在 UAT-07 的紧急 Episode 下录入第 6 条 temp/med Log，或等待该 Episode 创建超过 12 小时。2. 再次打开 App 或尝试写入。 | 切断新写入操作。弹出 Pro 升级弹窗（£2.99，当前为 mock IAP）。已保存的前 5 条紧急 Log 仍可在 Episodes / Episode 详情中查看（localStorage 只读保留，非物理删除）。 | PASS
+UAT-09 | 查看与切换历史病历 | 查阅过去的生病档案 | 1. 切换到 Episodes 页面。2. 点击查看 Closed Episodes 中的历史 Episode。 | 1. 可清晰查阅该 Episode 下所有历史体温和用药明细。2. 已关闭 Episode 仍可通过 Edit 入口修改 Log 及 Episode 元数据（非只读）。 | PASS
+UAT-32 | Episode 开始时间回拨 | 补录过去时间后 Episode 起点对齐 | 1. 当前 Open Episode 的 openedAt 为今天。2. 在 Quick Log 将 date/time 设为昨天，录入一条 Log 并 Save。3. 进入 Episode 详情查看 Started 日期。 | 1. Log 保存成功。2. Episode openedAt 自动更新为该 Episode 内最早 Log 的 date+time（显示为昨天）。3. Episodes 列表中 started 日期同步更新。 | Not Started
+UAT-41 | Closed 时间显示 | 已关闭 Episode 展示关闭日期与时间 | 1. 关闭一个 Episode（在 Close Episode 弹窗确认 End date/time）。2. 进入该 Episode 详情页，观察头部信息行。3. 返回 Episodes 页面，观察 Closed Episodes 区块该卡片信息行。 | 1. 详情页头部在 "Started [日期]" 之后显示 "· Closed [日期], [时间]"（如 "Closed 14 Jul 2026, 09:30"），时间与关闭时填写的 End date/time 一致。2. Episodes 列表 Closed 卡片显示起止日期区间（如 "11 Jul – 14 Jul"）。3. Open 状态的 Episode 不显示 Closed 信息。 | Not Started
+UAT-43 | Close 默认时间 | Close Episode 弹窗默认取最后一条 Log 时间 | 1. 在某 Open Episode 内录入若干条用药/体温 Log，最后一条为昨天 21:00。2. 进入该 Episode 详情，点击 Close Episode。3. 观察弹窗中 End date 与 End time 的默认值。4. 另取一个无任何 Log 的 Open Episode，点击 Close Episode 观察默认值。5. 确认关闭后查看详情页 Closed 时间。 | 1. End date/time 默认为最后一条 Log 的日期与时间（昨天 21:00），而非当前时间。2. 默认值仍可手动修改；早于 Episode 开始时间时报错 "Close time cannot be before episode start"。3. 无 Log 的 Episode（或最近 Log 早于 Episode 开始时间）默认回退为当前日期与时间。4. 关闭后 closedAt 与确认时弹窗所示一致，详情页 Closed 时间同步显示。 | Not Started
+
+三、 Log（日志明细）增删改查 & 安全锁 (Log CRUD & Safety Lock)
+用例编号 | 功能模块 | 测试场景 (User Scenario) | 操作步骤 (Steps) | 预期结果 (Expected Result) | 状态
+UAT-10 | 基础 Log 极速录入 | 录入体温或给药记录 | 1. 在 Quick Log 录入 38.5°C，药物选择 Paracetamol（英国商品名 Calpol），剂量 5ml（亦可选 2.5ml）。2. 点击 Save。 | 1. Episodes 时间轴 / Episode 详情立刻出现该 Log。2. Quick Log Paracetamol 卡片下方显示安全倒计时（如 `03:59:59`，基于 4 小时间隔）。 | PASS
+UAT-11 | 安全间隔拦截 | 在安全锁冷却期内再次尝试喂同一种药 | 1. 刚录入 Paracetamol（以当前时间为 Log 时间）。2. 保持 date/time 为现在，2 小时内再次选择 Paracetamol 并 Save。 | 拦截成功。弹出橘色背景 NHS Safety Warning（英文），标题与正文高对比可读；仅显示间隔分钟数与 4 小时建议；提供 Cancel 与 Proceed Anyway；不显示嵌入 Medical Disclaimer 区块。 | Not Started
+UAT-12 | 修改历史 Log | 补录或修正过去记错的体温 | 1. 在 Episodes 时间轴或 Episode 详情选中 3 小时前一条 39.0°C 的 Log。2. 点击 Edit，改为 38.8°C 并保存。 | 1. 该条 Log 在 localStorage 中成功更新。2. Episodes mini 时间轴及 Episode 详情页同步显示 38.8°C，无数据滞后。 | PASS
+UAT-13 | 删除历史 Log | 误触录入，需擦除单条记录 | 1. 在 Episode 详情页点击某条 Log 旁的删除按钮。2. 在确认框点击 Delete。 | 1. 该 Log 从 localStorage 彻底删除。2. 若删除的是最近一次给药，Quick Log 提示自动解除、按更早记录重算倒计时，或（间隔已过）显示绿色 "Ready for Next Dose"（见 UAT-23）。 | PASS
+UAT-23 | 药物安全锁超时解除 | 药物安全锁超时解除与精简时间差显示验证 | 1. 录入一条 5 小时前的 Paracetamol 记录（已超过 4 小时限制）。2. 打开 Quick Log 页面，查看 Paracetamol 卡片下方提示。 | Quick Log 该药物卡片下方由倒计时转为绿色精简提示，精确渲染 "🟢 Ready for Next Dose" 及 "Last Dose: [时间] (5h 0m ago)"，无其余多余文本，时间差计算准确。 | Not Started
+UAT-25 | 24h 每日剂量上限拦截 | Paracetamol 24h 内第 5 次给药拦截 | 1. 为同一孩子在以当前 Log 时间为终点的滚动 24h 内录入 4 条 Paracetamol（间隔均 >4h）。2. 第 5 次保持当前时间，在 Quick Log 选择剂量或 Save。 | 弹出红色 Modal "⚠️ Maximum Daily Dose Exceeded"，正文含 4 times / 4 doses 英文说明；[ Cancel ] 高亮推荐；[ Proceed Anyway (Risk Assumed) ] 可强行继续。 | Not Started
+UAT-26 | 24h 每日剂量上限拦截 | Ibuprofen 24h 内第 4 次给药拦截 | 1. 为同一孩子在以当前 Log 时间为终点的滚动 24h 内录入 3 条 Ibuprofen。2. 第 4 次选择剂量或 Save。 | 弹出红色 Maximum Daily Dose Exceeded Modal，正文为 Ibuprofen 3 times / 3 doses 英文说明。 | Not Started
+UAT-27 | Episodes 时间线排序 | Episodes 按时间线展示 Log | 1. 在同一 Episode 内交错录入用药 Log 与仅体温 Log。2. 查看 Episodes mini 预览与 Episode 详情页。 | 全部 Log 严格按 date+time 倒序排列（最新在最上）；用药与体温无优先级差异。mini 预览为最近 3 条。 | Not Started
+UAT-28 | 补录时间不触发误报间隔 | 补录昨天记录不受今天给药影响 | 1. 今天刚录入一条 Paracetamol（当前时间）。2. 在 Quick Log 将 date/time 改为昨天，选择 Paracetamol 并 Save。 | 不因「今天刚给药」误弹 NHS Safety Warning。系统仅比较昨天 Log 时间与昨天之前的历史给药间隔。 | Not Started
+UAT-29 | 补录历史不触发 24h 上限 | 录入 ≥24h 前的历史用药 | 1. 今天滚动 24h 内已满 4 次 Paracetamol。2. 将 Quick Log date/time 设为 2 天前，录入 Paracetamol 并 Save。 | 不弹出 Maximum Daily Dose Exceeded。历史补录视为 ≥24h 前记录，跳过当日滚动上限检查。 | Not Started
+UAT-38 | Quick Log 时间实时刷新 | date/time 字段实时走表与手动编辑保护 | 1. 打开 Quick Log 页面，不做任何操作等待 1–2 分钟，观察 time 字段。2. 将 App 切到后台数分钟后回前台，观察 time 字段。3. 手动将 time 修改为 1 小时前，等待 1 分钟观察是否被覆盖。4. 点击 Save 保存该补录 Log，观察 date/time 字段。 | 1. time 字段每约 30 秒自动刷新为当前时间，不停留在页面加载时刻。2. 回前台后 time 立即刷新为当前时间。3. 手动修改后自动刷新暂停，输入值不被覆盖（补录场景安全）。4. Save 成功后 date/time 重置为当前时间并恢复自动走表；两条先后录入的 Log 各自带真实时间，不再出现时间相同。 | Not Started
+UAT-39 | 剂量上限最后服药与解锁提示 | limit reached 下显示 Last Dose 与 Next dose 时间 | 1. 为同一孩子在滚动 24h 内录入 4 条 Paracetamol（最早一条为 20 小时前，最后一条为 3 小时前）。2. 打开 Quick Log，查看 Paracetamol 卡片下方红色提示。3. 对 Ibuprofen 录满 3 条后同样查看。 | 1. 红色提示第一行显示 "4/4 doses in 24h — limit reached"。2. 第二行灰色显示 "Last Dose: Today [时间] (3h 0m ago)"，时间与时间差准确且随时间更新。3. 第三行显示 "Next dose in 4h 0m ([时间])"——即窗口内最早一次给药满 24h 的时刻（若与上次给药的最小间隔 4h/6h 冲突则取较晚者）；跨天时刻显示 Tomorrow。4. Ibuprofen 卡片同样显示 "3/3 doses in 24h — limit reached"、Last Dose 与 Next dose 行；便于推算两种药各自的可服用时间。 | Not Started
+
+四、 5+5 天阶梯式静默结算与时间校准 (Data Lifecycle & Date Alignment)
+用例编号 | 功能模块 | 测试场景 (User Scenario) | 操作步骤 (Steps) | 预期结果 (Expected Result) | 状态
+UAT-14 | 第 5 天静默初次提醒 | 连续 5 天无新 Log | 1. 将当前 Open Episode 最后一条 Log 时间往前调 120 小时（5 天）。2. 重新打开 App（任意 Tab）。 | 全局弹出初次温馨提示："Is your child fully recovered? 🌟" / "No records for 5 days. We recommend closing this episode..." 提供 Close Episode 与 Keep Open。 | PASS
+UAT-15 | 静默期抗疲劳机制 | 第 5 天弹窗点击 Keep Open | 1. 在 UAT-14 弹窗点击 Keep Open。2. 接下来 1–4 天内频繁开关 App。 | 完美静默。此期间不再重复弹窗。 | PASS
+UAT-16 | 第 10 天二次严肃提醒 | 累计 10 天无动静 | 1. 将无记录时间推进到 240 小时（距上次 Keep Open 再满 5 天）。2. 重新打开 App。 | 再次弹出严肃文案："To ensure the absolute accuracy of your child's future health trend charts, please verify if this week-old episode has ended." 若再次 Keep Open，设置 reminder_exhausted，永不弹窗。 | PASS
+UAT-17 | 关闭时间回拨与图表校准 | 手动回拨痊愈时间 | 1. 关闭 Episode，在 End Date Picker 将时间回拨 48 小时。2. 查看 Duration 与 Dashboard 图表。 | 1. Episode 标记为 Closed。2. Duration 按回拨后的 closedAt 计算。3. Dashboard 堆叠柱状图高度联动缩短，无多余空白天数。 | PASS
+
+五、 Pro 用户购买成功与功能解锁检测 (Pro Purchase & Provisioning Flow)
+用例编号 | 功能模块 | 测试场景 (User Scenario) | 操作步骤 (Steps) | 预期结果 (Expected Result) | 状态
+UAT-18 | 支付拉起与加载状态 | Settings 或收费墙点击购买 | 1. 免费版受限状态。2. 点击 Upgrade for £2.99。 | 1. 立刻进入 Loading（2 秒 mock IAP，Loader 旋转）。2. 全屏遮罩覆盖含底部导航，背景与其他按钮均不可点击，防重复扣款。 | PASS
+UAT-19 | 权益瞬间无损下发 | mock 支付成功 | 1. 2 秒动画结束。2. 观察 isPro 与当前界面。 | 1. Toast："Purchase Successful!"（含 Pro unlocked 描述）。2. isPro 写入 localStorage。3. 被阻断的第 6 次 Log 或添加第 2 个孩子无需刷新即可继续。 | PASS
+UAT-40 | Pro 激活卡片位置 | Pro 激活后 Settings 卡片布局 | 1. 免费状态进入 Settings，观察页面顶部。2. 模拟激活 isPro: true。3. 重新进入 Settings，从上到下浏览各区块顺序。 | 1. 免费版 "Upgrade to KidHealth Pro" 卡片位于 Settings 顶部（Children 之前）。2. Pro 激活后顶部不再显示任何 Pro 卡片。3. "Permanent Pro activated" 卡片（Shield 图标 + 渐变底色 + 权益说明）出现在 Feedback 区块之后、About 区块之前；其余区块顺序不变。 | Not Started
+
+六、 法律合规与免责声明 (Legal & Medical Disclaimer)
+用例编号 | 功能模块 | 测试场景 (User Scenario) | 操作步骤 (Steps) | 预期结果 (Expected Result) | 状态
+UAT-20 | Settings 免责声明入口 | 设置页查看 Medical Disclaimer | 1. 进入 Settings 页面。2. 滚动至底部，点击 [Medical Disclaimer & Privacy Policy]。 | 1. 页面底部版本号下方可见永久入口链接。2. 点击后弹出完整 Medical Disclaimer（四段英文）及 Privacy Policy（本地存储说明），可 Close 关闭；再次进入 Settings 仍可重复查看。 | Not Started
+
+七、 Dashboard 数据分析 (Dashboard Analytics)
+用例编号 | 功能模块 | 测试场景 (User Scenario) | 操作步骤 (Steps) | 预期结果 (Expected Result) | 状态
+UAT-24 | Dashboard - Fever Trend Tracker | Fever Trend Tracker 历史发烧事件切换与精准渲染验证 | 前置：该孩子档案下至少 2 次含 Fever 标签 Episode。【场景 A】1. 创建 Open 且含 Fever 的新 Episode，录入多条不同体温。2. 观察 Dashboard Fever Trend Tracker。【场景 B】1. 关闭当前发烧 Episode。2. 刷新 Dashboard。3. 点击右上角下拉切换更早历史发烧 Episode。 | 【场景 A】卡片高亮；下拉默认 "🟢 Current Fever Episode"；线型图精准连线该次全部体温；Y 轴范围随当前温度单位显示（°C 35.0–41.5 或等效 °F）。【场景 B】无 Open 发烧时不留白，默认渲染最近 Closed 曲线；下拉可见历史日期列表；切换后曲线正确刷新。 | PASS
+
+八、 温度单位与 UI 体验 (Temperature Unit & UI/UX)
+用例编号 | 功能模块 | 测试场景 (User Scenario) | 操作步骤 (Steps) | 预期结果 (Expected Result) | 状态
+UAT-30 | 温度单位设置 | Settings 切换 Celsius / Fahrenheit | 1. 进入 Settings → Preferences → Temperature unit。2. 点击 Fahrenheit (°F)。3. 返回 Quick Log 查看滑块与读数。 | 1. 英文分段按钮高亮 Fahrenheit。2. Quick Log 温度显示 °F，滑块范围约为 98.6–107.6°F。3. 新 Save 的 Log 以 °F 数值写入 localStorage（tempUnit: fahrenheit）。 | Not Started
+UAT-31 | 历史温度单位迁移 | 切换单位后旧记录同步换算 | 1. 在 Celsius 下已有若干 38.x°C 记录。2. Settings 切换为 Fahrenheit。3. 查看 Episodes / Episode 详情 / Dashboard 图表。 | 1. 所有旧 Log 自动换算为 °F 并更新 tempUnit（如 38.7°C → 101.7°F）。2. 全站显示一致，无残留 °C 数值。3. 再切回 Celsius 时数值正确反向换算。 | Not Started
+UAT-33 | Episodes 列表滚动 | Episodes 页内容超出一屏 | 1. 创建多个 Episode 或较长 Open Episode 列表使页面超过一屏高度。2. 在 Episodes 页面向下滑动。 | 1. 顶部标题与孩子选择 tabs 保持可见。2. Open / Closed Episodes 列表可纵向滚动浏览全部内容。 | Not Started
+UAT-34 | Episode 详情滚动 | Episode 详情 Log 较多 | 1. 在同一 Episode 内录入 10+ 条 Log。2. 进入 Episode 详情页下滑。 | 1. 返回链接与 Episode 标题区固定。2. 操作按钮区（Log Medicine / Close / Re-open / Delete）位于日志列表上方（见 UAT-42），Log 列表可滚动查看全部记录。 | Not Started
+UAT-42 | Episode 操作按钮置顶 | 操作按钮无需滚动即可触达 | 1. 进入一个含 10+ 条 Log 的 Open Episode 详情页，不做任何滚动，观察首屏。2. 再进入一个 Closed Episode 详情页观察。 | 1. Open Episode 首屏在头部正下方、日志列表之前依次显示 [Log Medicine]、[Close Episode]、[Delete Episode] 按钮，无需滚动。2. Closed Episode 显示 [Re-open Episode] 与 [Delete Episode]。3. 页面底部不再重复显示这组按钮。4. 各按钮功能与原先一致（打开对应弹窗/确认框）。 | Not Started
+UAT-35 | 紧凑按钮统一 | Dashboard / Episodes 顶部控件尺寸 | 1. 打开 Dashboard 与 Episodes。2. 观察孩子选择 tabs、时间范围按钮、+ New Episode 按钮。 | 孩子 tabs、3/6/12 months 时间范围、+ New Episode（虚线）及主 CTA 均为紧凑统一尺寸（约 text-sm、py-2），无过大 padding。 | Not Started
+UAT-36 | 波西米亚配色 | 全局视觉风格 | 1. 浏览 Quick Log、Episodes、Dashboard、Settings。 | 页面呈现柔和波西米亚配色：奶油色背景、芥末黄主按钮、鼠尾草绿/桃色/灰蓝辅助色；整体温暖可读。 | Not Started
+
+汇总: PASS 18 / Not Started 23 / WARNING 0 / FAIL 0（共 41 条用例）
+（v2.4 新增 UAT-41–43，对应 App v1.0.4：Closed 时间显示、操作按钮置顶、Close 默认取最后 Log 时间；修订 UAT-34）
